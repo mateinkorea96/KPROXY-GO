@@ -3,6 +3,7 @@
 {% block content %}
 <h1>Place a Group Order</h1>
 <p class="lead">Fill in your Alibaba username and the GO codes you want. Payment is processed via Alibaba escrow after we confirm.</p>
+{% if error %}<div class="alert">{{ error }}</div>{% endif %}
 
 <div class="rules">
   <h3>📌 Order rules</h3>

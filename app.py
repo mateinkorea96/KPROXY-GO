@@ -162,24 +162,26 @@ async def health():
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
+    by_cat: Dict[str, List[Dict[str, Any]]] = {"POCA_SET": [], "ALBUM": [], "RESTOCK": []}
+    error = None
     if not sb:
-        return templates.TemplateResponse("home.html", {"request": request, "campaigns": [], "error": "Service unavailable"})
+        error = "Service is being configured. Please check back shortly."
+        return templates.TemplateResponse("home.html", {"request": request, "by_cat": by_cat, "active_count": 0, "error": error})
     res = sb.table("go_campaigns").select("*").order("category").order("deadline", desc=False).execute()
     enriched = _enrich_status(res.data or [])
     active = [c for c in enriched if c["status"] in ("open", "closing_soon")]
-    by_cat: Dict[str, List[Dict[str, Any]]] = {"POCA_SET": [], "ALBUM": [], "RESTOCK": []}
     for c in active:
         by_cat[c["category"]].append(c)
-    return templates.TemplateResponse("home.html", {"request": request, "by_cat": by_cat, "active_count": len(active)})
+    return templates.TemplateResponse("home.html", {"request": request, "by_cat": by_cat, "active_count": len(active), "error": None})
 
 @app.get("/order", response_class=HTMLResponse)
 async def order_form(request: Request):
     if not sb:
-        return templates.TemplateResponse("order.html", {"request": request, "campaigns": [], "error": "Service unavailable"})
+        return templates.TemplateResponse("order.html", {"request": request, "options": [], "error": "Service is being configured. Please check back shortly."})
     res = sb.table("go_campaigns").select("go_code, category, idol_name, album, version, retail_store, set_price_krw, set_detail").execute()
     enriched = _enrich_status(res.data or [])
     options = [c for c in enriched if c["status"] in ("open", "closing_soon")]
-    return templates.TemplateResponse("order.html", {"request": request, "options": options})
+    return templates.TemplateResponse("order.html", {"request": request, "options": options, "error": None})
 
 @app.post("/order")
 async def order_submit(request: Request):
