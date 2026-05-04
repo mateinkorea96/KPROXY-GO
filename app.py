@@ -30,6 +30,10 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
 SESSION_HOURS = int(os.environ.get("SESSION_HOURS", "24"))
+# Kakao "memo to self" API — used in place of Telegram. OAuth token refreshes every ~6h.
+KAKAO_REST_API_KEY = os.environ.get("KAKAO_REST_API_KEY", "")
+KAKAO_REDIRECT_URI = os.environ.get("KAKAO_REDIRECT_URI", "https://starphotocard-go.up.railway.app/admin/kakao/callback")
+# Telegram kept as fallback if Kakao not configured (gracefully no-ops if neither is set)
 TG_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TG_CHAT = os.environ.get("TELEGRAM_ADMIN_CHAT_ID", "")
 
@@ -134,6 +138,119 @@ async def telegram_notify(text: str) -> bool:
     except Exception as e:
         print(f"[telegram_notify] {e}")
         return False
+
+# ----------------------------------------------------------------------------
+# Kakao "memo to self" — replaces Telegram for admin notifications.
+# Flow:
+#   1. Admin visits /admin/kakao/connect once → Kakao login → consent
+#   2. /admin/kakao/callback receives ?code=XXX → exchanges for access_token
+#      + refresh_token, persists into kakao_token (single-row).
+#   3. notify_admin() reads token, refreshes if access expired (refresh_token
+#      lives ~60 days; we re-issue refresh_token if Kakao returns one).
+# ----------------------------------------------------------------------------
+
+KAKAO_AUTH_URL = "https://kauth.kakao.com/oauth/authorize"
+KAKAO_TOKEN_URL = "https://kauth.kakao.com/oauth/token"
+KAKAO_SEND_URL = "https://kapi.kakao.com/v2/api/talk/memo/default/send"
+
+async def _kakao_load_token() -> Optional[Dict[str, Any]]:
+    if not sb: return None
+    res = sb.table("kakao_token").select("*").eq("id", 1).maybeSingle().execute()
+    return res.data
+
+async def _kakao_save_token(access_token: Optional[str], refresh_token: Optional[str],
+                            expires_in: Optional[int], refresh_expires_in: Optional[int],
+                            scope: Optional[str]):
+    """Upsert into single-row kakao_token. Kakao only returns refresh_token when it's
+    re-issued (when previous one is < 1 month from expiry); preserve existing one otherwise."""
+    if not sb: return
+    payload: Dict[str, Any] = {"id": 1, "updated_at": _now().isoformat()}
+    if access_token: payload["access_token"] = access_token
+    if refresh_token: payload["refresh_token"] = refresh_token
+    if expires_in is not None:
+        payload["access_expires_at"] = (_now() + timedelta(seconds=int(expires_in))).isoformat()
+    if refresh_expires_in is not None:
+        payload["refresh_expires_at"] = (_now() + timedelta(seconds=int(refresh_expires_in))).isoformat()
+    if scope: payload["scope"] = scope
+    sb.table("kakao_token").upsert(payload, on_conflict="id").execute()
+
+async def _kakao_get_valid_access_token() -> Optional[str]:
+    """Returns a valid access_token, refreshing via refresh_token if needed.
+    Returns None if not configured or refresh_token missing/expired."""
+    if not KAKAO_REST_API_KEY: return None
+    row = await _kakao_load_token()
+    if not row: return None
+    access = row.get("access_token")
+    refresh = row.get("refresh_token")
+    if not refresh:
+        return None  # not authorized yet — admin needs to visit /admin/kakao/connect
+    # Is access still valid (with 60s buffer)?
+    if access and row.get("access_expires_at"):
+        try:
+            exp = datetime.fromisoformat(row["access_expires_at"].replace("Z", "+00:00"))
+            if exp.replace(tzinfo=None) - _now() > timedelta(seconds=60):
+                return access
+        except Exception:
+            pass
+    # Refresh
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(KAKAO_TOKEN_URL, data={
+                "grant_type": "refresh_token",
+                "client_id": KAKAO_REST_API_KEY,
+                "refresh_token": refresh,
+            })
+            j = r.json()
+            if r.status_code != 200 or not j.get("access_token"):
+                print(f"[kakao_refresh] failed {r.status_code}: {j}")
+                return None
+            await _kakao_save_token(
+                access_token=j.get("access_token"),
+                refresh_token=j.get("refresh_token"),  # may be absent — preserve existing
+                expires_in=j.get("expires_in"),
+                refresh_expires_in=j.get("refresh_token_expires_in"),
+                scope=None,
+            )
+            return j.get("access_token")
+    except Exception as e:
+        print(f"[kakao_refresh] exception: {e}")
+        return None
+
+async def kakao_notify(text: str, link_url: Optional[str] = None) -> bool:
+    access = await _kakao_get_valid_access_token()
+    if not access: return False
+    template_object = {
+        "object_type": "text",
+        "text": text[:4000],  # Kakao limit
+        "link": {"web_url": link_url or "https://starphotocard-go.up.railway.app",
+                 "mobile_web_url": link_url or "https://starphotocard-go.up.railway.app"},
+        "button_title": "Open Admin",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(KAKAO_SEND_URL,
+                                  headers={"Authorization": f"Bearer {access}"},
+                                  data={"template_object": json_dumps(template_object)})
+            if r.status_code == 200:
+                return True
+            print(f"[kakao_notify] {r.status_code}: {r.text[:200]}")
+            return False
+    except Exception as e:
+        print(f"[kakao_notify] exception: {e}")
+        return False
+
+# Use json.dumps (avoid repeated import elsewhere)
+import json as _json
+def json_dumps(o: Any) -> str: return _json.dumps(o, ensure_ascii=False)
+
+async def notify_admin(text: str, link_url: Optional[str] = None) -> bool:
+    """Single entrypoint — prefers Kakao, falls back to Telegram if Kakao not configured/failed."""
+    # Try Kakao first
+    if KAKAO_REST_API_KEY:
+        if await kakao_notify(text, link_url):
+            return True
+    # Fallback to Telegram
+    return await telegram_notify(text)
 
 def _enrich_status(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Add `status` and `d_day` to a list of campaign rows."""
@@ -241,7 +358,7 @@ async def order_submit(request: Request):
            f"Buyer: {alibaba_username}\n"
            f"Items:\n{summary}\n"
            f"Total: ₩{int(total_krw):,}")
-    notified = await telegram_notify(msg)
+    notified = await notify_admin(msg, link_url="https://starphotocard-go.up.railway.app/admin/orders")
     if notified:
         sb.table("go_buyer_orders").update({"notified_at": _now().isoformat()}).eq("id", order_id).execute()
     return RedirectResponse(f"/order/success?id={order_id}", status_code=302)
@@ -655,7 +772,7 @@ async def cron_deadline_check(secret: str = ""):
         lines.append("\n오늘 마감 임박(0/1/3/5/7일) 항목 없음 (heartbeat ✓)")
     lines.append(f"\n— {today.isoformat()} 09:00 KST 기준 / starphotocard-go")
     msg = "\n".join(lines)
-    sent = await telegram_notify(msg)
+    sent = await notify_admin(msg, link_url="https://starphotocard-go.up.railway.app/admin/aggregate")
 
     # Audit (records dedup key — second call returns "skipped")
     try:
@@ -674,3 +791,87 @@ async def cron_deadline_check(secret: str = ""):
 @app.get("/faq", response_class=HTMLResponse)
 async def faq_page(request: Request):
     return templates.TemplateResponse("faq.html", {"request": request})
+
+# ----------------------------------------------------------------------------
+# Kakao OAuth (admin-only) — connect once to authorize, then notifications work.
+# ----------------------------------------------------------------------------
+
+@app.get("/admin/kakao/connect", response_class=HTMLResponse)
+async def admin_kakao_connect(session_id: Optional[str] = Cookie(None)):
+    if (r := _admin_or_redirect(session_id)): return r
+    if not KAKAO_REST_API_KEY:
+        return PlainTextResponse("KAKAO_REST_API_KEY not configured in Railway env", status_code=503)
+    auth_url = (f"{KAKAO_AUTH_URL}?response_type=code"
+                f"&client_id={KAKAO_REST_API_KEY}"
+                f"&redirect_uri={KAKAO_REDIRECT_URI}"
+                f"&scope=talk_message")
+    return RedirectResponse(auth_url, status_code=302)
+
+@app.get("/admin/kakao/callback", response_class=HTMLResponse)
+async def admin_kakao_callback(request: Request, code: str = "", error: str = "", session_id: Optional[str] = Cookie(None)):
+    if (r := _admin_or_redirect(session_id)): return r
+    if error:
+        return PlainTextResponse(f"Kakao authorization denied: {error}", status_code=400)
+    if not code:
+        return PlainTextResponse("Missing ?code from Kakao callback", status_code=400)
+    if not KAKAO_REST_API_KEY:
+        return PlainTextResponse("KAKAO_REST_API_KEY not configured", status_code=503)
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.post(KAKAO_TOKEN_URL, data={
+                "grant_type": "authorization_code",
+                "client_id": KAKAO_REST_API_KEY,
+                "redirect_uri": KAKAO_REDIRECT_URI,
+                "code": code,
+            })
+            j = r.json()
+            if r.status_code != 200 or not j.get("access_token"):
+                return PlainTextResponse(f"Kakao token exchange failed: {j}", status_code=502)
+            await _kakao_save_token(
+                access_token=j["access_token"],
+                refresh_token=j.get("refresh_token"),
+                expires_in=j.get("expires_in"),
+                refresh_expires_in=j.get("refresh_token_expires_in"),
+                scope=j.get("scope"),
+            )
+        return HTMLResponse(
+            "<h1>✅ Kakao connected</h1>"
+            "<p>알림이 이제부터 본인 카카오톡으로 발송됩니다.</p>"
+            "<p>다음 단계: <a href='/admin/kakao/test'>📨 테스트 메시지 발송</a></p>"
+            "<p><a href='/admin/dashboard'>← Admin Dashboard</a></p>"
+        )
+    except Exception as e:
+        return PlainTextResponse(f"Kakao callback exception: {e}", status_code=500)
+
+@app.get("/admin/kakao/test")
+async def admin_kakao_test(session_id: Optional[str] = Cookie(None)):
+    if (r := _admin_or_redirect(session_id)): return r
+    ok = await kakao_notify("🔧 starphotocard-go test message — Kakao 연동 확인용입니다. 실제 운영 시에는 새 주문이 들어오면 자동으로 알림이 옵니다.")
+    if ok:
+        return HTMLResponse(
+            "<h1>✅ 테스트 메시지 발송 완료</h1>"
+            "<p>본인 카카오톡 채팅 목록에서 '나에게 보내기' 방을 확인해주세요.</p>"
+            "<p><a href='/admin/dashboard'>← Admin Dashboard</a></p>"
+        )
+    return PlainTextResponse(
+        "Kakao 발송 실패. /admin/kakao/connect 를 먼저 실행해서 OAuth 권한 승인이 됐는지 확인해주세요. "
+        "Railway 로그에서 [kakao_notify] 또는 [kakao_refresh] 에러 메시지 확인 가능.",
+        status_code=502)
+
+@app.get("/admin/kakao/status")
+async def admin_kakao_status(session_id: Optional[str] = Cookie(None)):
+    if (r := _admin_or_redirect(session_id)): return r
+    if not sb: return JSONResponse({"ok": False, "error": "db not configured"}, status_code=503)
+    row = await _kakao_load_token()
+    if not row:
+        return JSONResponse({"ok": False, "connected": False, "reason": "no token row"})
+    has_access = bool(row.get("access_token"))
+    has_refresh = bool(row.get("refresh_token"))
+    return JSONResponse({
+        "ok": True, "connected": has_access and has_refresh,
+        "has_access_token": has_access, "has_refresh_token": has_refresh,
+        "access_expires_at": row.get("access_expires_at"),
+        "refresh_expires_at": row.get("refresh_expires_at"),
+        "scope": row.get("scope"), "updated_at": row.get("updated_at"),
+        "rest_api_key_configured": bool(KAKAO_REST_API_KEY),
+    })
