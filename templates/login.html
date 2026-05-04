@@ -3,7 +3,8 @@
 {% block body_class %}login-body{% endblock %}
 {% block content %}
 <div class="login-card">
-  <h1>Admin login</h1>
+  <img class="login-logo" src="/static/img/logo.png" alt="starphotocard">
+  <h1>Admin Sign In</h1>
   {% if error %}<div class="alert">{{ error }}</div>{% endif %}
   <form method="post" action="/admin/login">
     <label>Password
