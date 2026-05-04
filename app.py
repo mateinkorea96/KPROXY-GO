@@ -160,6 +160,25 @@ async def health():
     return {"status": "ok", "service": "starphotocard-go", "version": "0.1.0",
             "db": bool(sb), "telegram": bool(TG_TOKEN and TG_CHAT)}
 
+@app.get("/diag/telegram")
+async def diag_telegram(secret: str = ""):
+    """Returns Telegram sendMessage probe details. Gated by env DIAG_SECRET to prevent abuse."""
+    expected = os.environ.get("DIAG_SECRET", "")
+    if not expected or secret != expected:
+        raise HTTPException(401, "diag secret required")
+    # Mask sensitive parts
+    token_preview = (TG_TOKEN[:8] + "..." + TG_TOKEN[-4:]) if TG_TOKEN else "(missing)"
+    chat_preview = TG_CHAT or "(missing)"
+    if not TG_TOKEN or not TG_CHAT:
+        return {"ok": False, "reason": "env_missing", "token_preview": token_preview, "chat_preview": chat_preview}
+    url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(url, json={"chat_id": TG_CHAT, "text": "🔧 starphotocard-go diag probe — if you see this, the wiring is OK.", "disable_web_page_preview": True})
+            return {"ok": r.status_code == 200, "status": r.status_code, "body": r.json(), "token_preview": token_preview, "chat_preview": chat_preview}
+    except Exception as e:
+        return {"ok": False, "reason": "exception", "error": str(e), "token_preview": token_preview, "chat_preview": chat_preview}
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     by_cat: Dict[str, List[Dict[str, Any]]] = {"POCA_SET": [], "ALBUM": [], "RESTOCK": []}
