@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Manage GOs{% endblock %}
+{% block content %}
+<h1>Group Orders</h1>
+<form method="get" action="/admin/campaigns" class="filter-row">
+  <select name="cat">
+    <option value="" {{ 'selected' if not cat }}>All categories</option>
+    <option value="POCA_SET" {{ 'selected' if cat == 'POCA_SET' }}>Photocard Sets</option>
+    <option value="ALBUM" {{ 'selected' if cat == 'ALBUM' }}>Albums</option>
+    <option value="RESTOCK" {{ 'selected' if cat == 'RESTOCK' }}>Restocks</option>
+  </select>
+  <input type="text" name="q" placeholder="Search idol/album/store" value="{{ q }}">
+  <button class="btn">Filter</button>
+  <a class="btn primary" href="/admin/campaign/new?category=POCA_SET">+ New</a>
+</form>
+
+<table class="dt sticky">
+  <thead><tr>
+    <th>Code</th><th>Cat</th><th>Idol</th><th>Album</th><th>Version/Store</th>
+    <th>Price</th><th>Deadline</th><th>D-day</th><th>Status</th><th>Actions</th>
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr class="status-{{ r.status }}{{ ' is-closed' if r.is_closed }}">
+      <td><code>{{ r.go_code }}</code></td>
+      <td>{{ r.category }}</td>
+      <td>{{ r.idol_name }}</td>
+      <td>{{ r.album }}</td>
+      <td>{{ r.version or r.retail_store or '' }}</td>
+      <td>{{ '₩{:,}'.format(r.set_price_krw|int) if r.set_price_krw else '—' }}</td>
+      <td>{{ r.deadline or '—' }}</td>
+      <td>{{ r.d_day if r.d_day is not none else '—' }}</td>
+      <td><span class="pill st-{{ r.status }}">{{ r.status }}</span></td>
+      <td class="actions">
+        <a href="/admin/campaign/{{ r.go_code }}/edit">Edit</a>
+        <form method="post" action="/admin/campaign/{{ r.go_code }}/toggle-close" style="display:inline">
+          <button class="link">{{ 'Reopen' if r.is_closed else 'Close' }}</button>
+        </form>
+        <form method="post" action="/admin/campaign/{{ r.go_code }}/delete" style="display:inline" onsubmit="return confirm('Delete {{ r.go_code }}?')">
+          <button class="link danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if not rows %}<div class="empty">No campaigns match.</div>{% endif %}
+{% endblock %}

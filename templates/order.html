@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Place an Order — starphotocard GO{% endblock %}
+{% block content %}
+<h1>Place a Group Order</h1>
+<p class="lead">Fill in your Alibaba username and the GO codes you want. Payment is processed via Alibaba escrow after we confirm.</p>
+
+<div class="rules">
+  <h3>📌 Order rules</h3>
+  <ol>
+    <li>We accept payment <strong>only via Alibaba (escrow service)</strong>.</li>
+    <li>Worldwide shipping via K-packet, FedEx, or Korean Warehouse.</li>
+    <li>Tax is the buyer's responsibility, not included in item price.</li>
+    <li>We sell only <strong>100% official</strong> items.</li>
+    <li>Please record an unboxing video if you want to exchange photocards.</li>
+    <li>Photocard exchange is only for damages larger than 5mm on the portrait.</li>
+    <li>Cancellation is not possible after order is placed.</li>
+  </ol>
+</div>
+
+<form method="post" action="/order" class="order-form" id="order-form">
+  <fieldset>
+    <legend>Your info</legend>
+    <label>Alibaba username <span class="req">*</span>
+      <input name="alibaba_username" required placeholder="e.g. buyer_jane123">
+    </label>
+    <label>Contact email (optional)
+      <input name="contact_email" type="email" placeholder="for follow-up if needed">
+    </label>
+    <label>Note (optional)
+      <textarea name="contact_note" rows="2" placeholder="Any special requests?"></textarea>
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Items</legend>
+    <table class="items">
+      <thead><tr><th>GO code</th><th>Item</th><th>Price</th><th>Qty</th><th></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <button type="button" class="btn" onclick="addRow()">+ Add another item</button>
+  </fieldset>
+
+  <button type="submit" class="btn primary big">Submit order</button>
+</form>
+
+<script>
+const OPTIONS = {{ options|tojson }};
+
+function addRow(prefill) {
+  const tbody = document.getElementById('rows');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td>
+      <select name="go_code[]" onchange="updatePrice(this)" required>
+        <option value="">-- choose GO --</option>
+        ${OPTIONS.map(o => `<option value="${o.go_code}" data-price="${o.set_price_krw||0}">${o.go_code} · ${o.idol_name} ${o.album}${o.version?' '+o.version:''}${o.retail_store?' @ '+o.retail_store:''}</option>`).join('')}
+      </select>
+    </td>
+    <td class="detail-cell"><span class="muted">— select a GO —</span></td>
+    <td class="price-cell">—</td>
+    <td><input name="qty[]" type="number" min="1" value="1" required style="width:60px"></td>
+    <td><button type="button" class="btn small" onclick="this.closest('tr').remove()">×</button></td>
+  `;
+  tbody.appendChild(tr);
+}
+
+function updatePrice(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  const tr = sel.closest('tr');
+  const price = parseFloat(opt.dataset.price || 0);
+  tr.querySelector('.price-cell').textContent = price ? '₩' + price.toLocaleString() : '—';
+  const meta = OPTIONS.find(o => o.go_code === sel.value);
+  if (meta) {
+    tr.querySelector('.detail-cell').innerHTML = (meta.set_detail || '') + (meta.set_detail ? '<br>' : '') +
+      `<span class="muted">${meta.status === 'closing_soon' ? '⚠ closes in '+meta.d_day+'d' : meta.d_day+'d left'}</span>`;
+  }
+}
+
+addRow();
+</script>
+{% endblock %}

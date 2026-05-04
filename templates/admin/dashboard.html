@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Admin dashboard{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<div class="kpi-row">
+  <div class="kpi"><span class="lbl">Total GOs</span><span class="val">{{ cnt_total }}</span></div>
+  <div class="kpi"><span class="lbl">Open</span><span class="val ok">{{ cnt_open }}</span></div>
+  <div class="kpi"><span class="lbl">Buyer Orders</span><span class="val">{{ cnt_orders }}</span></div>
+</div>
+
+<nav class="quick">
+  <a class="btn primary" href="/admin/campaigns">Manage GOs</a>
+  <a class="btn" href="/admin/campaign/new?category=POCA_SET">+ New Photocard Set</a>
+  <a class="btn" href="/admin/campaign/new?category=ALBUM">+ New Album</a>
+  <a class="btn" href="/admin/campaign/new?category=RESTOCK">+ New Restock</a>
+  <a class="btn" href="/admin/orders">Buyer Orders</a>
+  <a class="btn" href="/admin/aggregate">Bulk-Buy Aggregate</a>
+  <a class="btn" href="/admin/import">Import xlsx</a>
+</nav>
+
+<h2>Recent buyer orders</h2>
+{% if recent_orders %}
+<table class="dt">
+  <thead><tr><th>#</th><th>Buyer</th><th>Total ₩</th><th>Status</th><th>Notified</th><th>When</th></tr></thead>
+  <tbody>
+  {% for o in recent_orders %}
+    <tr>
+      <td>#{{ o.id }}</td>
+      <td>{{ o.alibaba_username }}</td>
+      <td>{{ '{:,}'.format(o.total_krw|int) }}</td>
+      <td><span class="pill st-{{ o.status }}">{{ o.status }}</span></td>
+      <td>{{ '✓' if o.notified_at else '—' }}</td>
+      <td class="muted">{{ o.created_at[:16] }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}<div class="empty">No buyer orders yet.</div>{% endif %}
+{% endblock %}

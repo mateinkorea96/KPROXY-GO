@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Order received — starphotocard GO{% endblock %}
+{% block content %}
+<section class="success">
+  <h1>🎀 Order received</h1>
+  <p>Your order <strong>#{{ order_id }}</strong> has been recorded. We'll contact you on Alibaba to confirm and arrange payment.</p>
+  <p><a class="btn" href="/">Back to active GOs</a> &nbsp; <a class="btn primary" href="/order">Place another order</a></p>
+</section>
+{% endblock %}

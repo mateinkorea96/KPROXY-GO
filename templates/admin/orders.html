@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Buyer Orders{% endblock %}
+{% block content %}
+<h1>Buyer Orders</h1>
+<form method="get" action="/admin/orders" class="filter-row">
+  <select name="status">
+    <option value="" {{ 'selected' if not status }}>All</option>
+    <option value="submitted" {{ 'selected' if status == 'submitted' }}>Submitted</option>
+    <option value="confirmed" {{ 'selected' if status == 'confirmed' }}>Confirmed</option>
+    <option value="shipped" {{ 'selected' if status == 'shipped' }}>Shipped</option>
+    <option value="cancelled" {{ 'selected' if status == 'cancelled' }}>Cancelled</option>
+  </select>
+  <button class="btn">Filter</button>
+</form>
+
+{% if not orders %}<div class="empty">No orders match.</div>{% endif %}
+{% for o in orders %}
+  <article class="order-card">
+    <header>
+      <span class="oid">#{{ o.id }}</span>
+      <strong>{{ o.alibaba_username }}</strong>
+      <span class="pill st-{{ o.status }}">{{ o.status }}</span>
+      <span class="muted">{{ o.created_at[:16] }}</span>
+      {% if o.notified_at %}<span class="pill ok">📨 notified</span>{% endif %}
+    </header>
+    {% if o.contact_email %}<div class="muted">Email: {{ o.contact_email }}</div>{% endif %}
+    {% if o.contact_note %}<div>Note: {{ o.contact_note }}</div>{% endif %}
+    <table class="dt compact">
+      <thead><tr><th>GO</th><th>Qty</th><th>Unit ₩</th><th>Line ₩</th></tr></thead>
+      <tbody>
+      {% for it in o['items'] %}
+        <tr>
+          <td><code>{{ it.go_code }}</code></td>
+          <td>{{ it.qty }}</td>
+          <td>{{ '{:,}'.format(it.unit_price_krw|int) if it.unit_price_krw else '—' }}</td>
+          <td>{{ '{:,}'.format(it.line_total_krw|int) if it.line_total_krw else '—' }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+      <tfoot><tr><td colspan="3" class="r">Total</td><td>₩{{ '{:,}'.format(o.total_krw|int) }}</td></tr></tfoot>
+    </table>
+    <form method="post" action="/admin/order/{{ o.id }}/status" class="inline">
+      <select name="status">
+        {% for s in ['submitted','confirmed','shipped','cancelled'] %}
+          <option value="{{ s }}" {{ 'selected' if s == o.status }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn small">Update status</button>
+    </form>
+  </article>
+{% endfor %}
+{% endblock %}

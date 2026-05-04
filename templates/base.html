@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}starphotocard GO{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <header class="topbar">
+    <a class="brand" href="/">⭐ starphotocard <em>GO</em></a>
+    <nav>
+      <a href="/">Active GOs</a>
+      <a href="/order">Place Order</a>
+      {% if request.cookies.get('session_id') %}
+        <a href="/admin/dashboard">Admin</a>
+        <a href="/admin/logout" class="muted">Log out</a>
+      {% else %}
+        <a href="/admin/login" class="muted">Admin</a>
+      {% endif %}
+    </nav>
+  </header>
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="footer">
+    <span>starphotocard Group Order — official K-pop merchandise from Korea.</span>
+  </footer>
+</body>
+</html>

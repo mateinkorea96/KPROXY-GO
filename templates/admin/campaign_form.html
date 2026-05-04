@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ 'New' if is_new else 'Edit' }} GO — {{ row.go_code if row else '' }}{% endblock %}
+{% block content %}
+<h1>{{ 'New' if is_new else 'Edit ' + row.go_code }} <span class="muted">— {{ category }}</span></h1>
+
+<form method="post" action="{{ '/admin/campaign/new' if is_new else '/admin/campaign/' + row.go_code + '/edit' }}" class="campaign-form">
+  <input type="hidden" name="category" value="{{ category }}">
+
+  {% if is_new %}
+  <label>GO code <span class="muted">(auto if blank)</span>
+    <input name="go_code" placeholder="auto-generated">
+  </label>
+  {% endif %}
+
+  <div class="row2">
+    <label>Idol <input name="idol_name" required value="{{ row.idol_name if row else '' }}"></label>
+    <label>Album <input name="album" required value="{{ row.album if row else '' }}"></label>
+  </div>
+
+  {% if category in ['ALBUM', 'RESTOCK'] %}
+  <label>Version <input name="version" value="{{ row.version if row else '' }}"></label>
+  {% endif %}
+
+  {% if category == 'POCA_SET' %}
+  <label>Retail Store <input name="retail_store" value="{{ row.retail_store if row else '' }}"></label>
+  <label>Set Detail <input name="set_detail" value="{{ row.set_detail if row else '' }}" placeholder="e.g. 5 MEMBER PHOTOCARD SET"></label>
+  {% elif category == 'RESTOCK' %}
+  <label>Detail <input name="detail" value="{{ row.detail if row else '' }}" placeholder="e.g. Random 1 of 5"></label>
+  {% endif %}
+
+  {% if category == 'ALBUM' %}
+  <div class="row2">
+    <label>POB store <input name="pob_store" value="{{ row.pob_store if row else '' }}" placeholder="WEVERSE / YES24 / X"></label>
+    <label>POB detail <input name="pob_detail" value="{{ row.pob_detail if row else '' }}" placeholder="Random 1 Photocard"></label>
+  </div>
+  <div class="row2">
+    <label>Retail price (KRW) <input name="retail_price_krw" type="number" step="1" value="{{ row.retail_price_krw|int if row and row.retail_price_krw else '' }}"></label>
+    <label>Discount % <input name="discount_pct" type="number" step="0.1" value="{{ row.discount_pct if row else '' }}"></label>
+  </div>
+  {% endif %}
+
+  <label>URL <input name="url" type="url" value="{{ row.url if row else '' }}" placeholder="https://..."></label>
+  <label>Price (KRW) <input name="set_price_krw" type="number" step="1" value="{{ row.set_price_krw|int if row and row.set_price_krw else '' }}"></label>
+  <label>Deadline <input name="deadline" type="date" value="{{ row.deadline if row else '' }}"></label>
+  <label class="check">
+    <input type="checkbox" name="is_closed" {{ 'checked' if row and row.is_closed }}>
+    <span>Closed (manual override)</span>
+  </label>
+  <label>Note <textarea name="note" rows="2">{{ row.note if row else '' }}</textarea></label>
+
+  <div class="actions">
+    <a class="btn" href="/admin/campaigns">Cancel</a>
+    <button class="btn primary">{{ 'Create' if is_new else 'Save' }}</button>
+  </div>
+</form>
+{% endblock %}

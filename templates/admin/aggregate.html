@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Bulk-Buy Aggregate{% endblock %}
+{% block content %}
+<h1>Alibaba Bulk-Buy Aggregate</h1>
+<p class="lead">Total quantity per GO across all submitted/confirmed orders. Use this to place your wholesale order.</p>
+
+<table class="dt sticky">
+  <thead><tr>
+    <th>GO Code</th><th>Cat</th><th>Idol</th><th>Album</th><th>Ver/Store</th>
+    <th>Deadline</th><th>Status</th><th>Buyers</th><th>Total Qty</th><th>Total ₩</th>
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr class="status-{{ r.status }}">
+      <td><code>{{ r.go_code }}</code></td>
+      <td>{{ r.category }}</td>
+      <td>{{ r.idol_name }}</td>
+      <td>{{ r.album }}</td>
+      <td>{{ r.version or r.retail_store or '' }}</td>
+      <td>{{ r.deadline or '—' }}</td>
+      <td><span class="pill st-{{ r.status }}">{{ r.status }}</span></td>
+      <td>{{ r.buyer_count }}</td>
+      <td><strong>{{ r.total_qty }}</strong></td>
+      <td>₩{{ '{:,}'.format(r.total_krw|int) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
