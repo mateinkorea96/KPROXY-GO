@@ -33,6 +33,7 @@
       <td><span class="pill st-{{ r.status }}">{{ r.status }}</span></td>
       <td class="actions">
         <a href="/admin/campaign/{{ r.go_code }}/edit">Edit</a>
+        <a class="csv-btn" href="/admin/campaign/{{ r.go_code }}/buyers.csv">📥 CSV</a>
         <form method="post" action="/admin/campaign/{{ r.go_code }}/toggle-close" style="display:inline">
           <button class="link">{{ 'Reopen' if r.is_closed else 'Close' }}</button>
         </form>

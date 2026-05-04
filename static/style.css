@@ -234,6 +234,32 @@ table.dt tr.is-closed td{opacity:0.5}
 .result-list{background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:16px 28px; margin-top:14px; box-shadow: var(--shadow-sm)}
 .result-list li.err{color:var(--danger)}
 
+/* Buyer-count social-proof badge (home cards) */
+.buyer-count{
+  display:inline-block;
+  margin-top:8px;
+  padding:3px 10px;
+  background: var(--pink-bg);
+  color: var(--purple);
+  border-radius:99px;
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:0.02em;
+}
+
+/* FAQ */
+.faq-section{margin:24px 0; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:18px 24px; box-shadow: var(--shadow-sm)}
+.faq-section h2{font-size:18px; margin-bottom:10px; color:var(--purple)}
+.faq-section p, .faq-section li{color:var(--text-dim); font-size:14px; line-height:1.7}
+.faq-section strong{color:var(--text)}
+.faq-section ul, .faq-section ol{padding-left:22px}
+.faq-section li{margin-bottom:6px}
+.faq-steps li{margin-bottom:10px}
+
+/* CSV export button (admin) */
+.csv-btn{display:inline-block; padding:3px 8px; background:var(--purple-bg); color:var(--purple); border:1px solid var(--purple); border-radius:4px; font-size:11px; font-weight:600; text-decoration:none}
+.csv-btn:hover{background:var(--purple); color:#fff; text-decoration:none}
+
 /* Responsive */
 @media (max-width: 640px){
   .topbar{padding:10px 16px; gap:12px}

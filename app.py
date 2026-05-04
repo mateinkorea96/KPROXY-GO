@@ -6,16 +6,18 @@ On every new order: a Telegram message is pushed to the admin chat (if env vars 
 """
 from __future__ import annotations
 
+import csv
 import io
 import os
 import re
 import secrets
+import time
 from datetime import datetime, date, timedelta
 from typing import Optional, List, Dict, Any
 
 import httpx
 from fastapi import FastAPI, Request, Form, Cookie, HTTPException, UploadFile, File, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from supabase import create_client, Client
@@ -170,7 +172,14 @@ async def home(request: Request):
     res = sb.table("go_campaigns").select("*").order("category").order("deadline", desc=False).execute()
     enriched = _enrich_status(res.data or [])
     active = [c for c in enriched if c["status"] in ("open", "closing_soon")]
+    # Attach buyer_count per GO from go_campaign_aggregate view (used as social-proof badge, gated >=3 in template)
+    try:
+        agg = sb.table("go_campaign_aggregate").select("go_code, buyer_count").execute()
+        bc_map: Dict[str, int] = {r["go_code"]: int(r["buyer_count"] or 0) for r in (agg.data or [])}
+    except Exception:
+        bc_map = {}
     for c in active:
+        c["buyer_count"] = bc_map.get(c["go_code"], 0)
         by_cat[c["category"]].append(c)
     return templates.TemplateResponse("home.html", {"request": request, "by_cat": by_cat, "active_count": len(active), "error": None})
 
@@ -524,3 +533,144 @@ async def admin_import_submit(request: Request, session_id: Optional[str] = Cook
         upsert_rows(rows)
 
     return templates.TemplateResponse("admin/import.html", {"request": request, "result": summary})
+
+# ----------------------------------------------------------------------------
+# CSV exports — per-GO buyers + bulk for "what to bulk-buy on Alibaba this week"
+# ----------------------------------------------------------------------------
+
+# Convention: deadline = the listed date in KST until 23:59. After that, GO closes.
+
+CSV_COLS = ["go_code", "order_id", "alibaba_username", "qty",
+            "unit_price_krw", "line_total_krw", "contact_email", "contact_note",
+            "created_at", "status"]
+
+def _write_csv_rows(rows: List[Dict[str, Any]]) -> bytes:
+    buf = io.StringIO()
+    buf.write("﻿")  # UTF-8 BOM so Excel opens Korean correctly
+    w = csv.writer(buf)
+    w.writerow(CSV_COLS)
+    for r in rows:
+        w.writerow([r.get(c, "") if r.get(c) is not None else "" for c in CSV_COLS])
+    return buf.getvalue().encode("utf-8")
+
+def _fetch_buyer_rows(go_codes: List[str]) -> List[Dict[str, Any]]:
+    """Returns flattened rows joining go_buyer_orders + items, for the given GO codes,
+    excluding cancelled orders. Sorted by created_at desc."""
+    if not go_codes: return []
+    items = sb.table("go_buyer_order_items").select("order_id, go_code, qty, unit_price_krw, line_total_krw").in_("go_code", go_codes).execute()
+    item_rows = items.data or []
+    if not item_rows: return []
+    order_ids = list({i["order_id"] for i in item_rows})
+    orders = sb.table("go_buyer_orders").select("id, alibaba_username, contact_email, contact_note, status, created_at").in_("id", order_ids).neq("status", "cancelled").execute()
+    order_map = {o["id"]: o for o in (orders.data or [])}
+    out: List[Dict[str, Any]] = []
+    for it in item_rows:
+        o = order_map.get(it["order_id"])
+        if not o: continue  # cancelled or missing
+        out.append({
+            "go_code": it["go_code"], "order_id": it["order_id"],
+            "alibaba_username": o["alibaba_username"], "qty": it["qty"],
+            "unit_price_krw": it.get("unit_price_krw"), "line_total_krw": it.get("line_total_krw"),
+            "contact_email": o.get("contact_email"), "contact_note": o.get("contact_note"),
+            "created_at": (o.get("created_at") or "")[:19], "status": o["status"],
+        })
+    out.sort(key=lambda r: (r["go_code"], r.get("created_at") or ""))
+    return out
+
+@app.get("/admin/campaign/{code}/buyers.csv")
+async def admin_export_buyers_csv(code: str, session_id: Optional[str] = Cookie(None)):
+    if (r := _admin_or_redirect(session_id)): return r
+    if not sb: return PlainTextResponse("DB not configured", status_code=503)
+    rows = _fetch_buyer_rows([code])
+    body = _write_csv_rows(rows)
+    fname = f"{code}_buyers_{date.today().isoformat()}.csv"
+    return StreamingResponse(io.BytesIO(body), media_type="text/csv; charset=utf-8",
+                             headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+@app.get("/admin/buyers.csv")
+async def admin_export_all_closing_csv(session_id: Optional[str] = Cookie(None), closing_within: int = 7):
+    """One CSV with ALL buyers across GOs whose deadline is within N days. The 'what do I order this week' workflow."""
+    if (r := _admin_or_redirect(session_id)): return r
+    if not sb: return PlainTextResponse("DB not configured", status_code=503)
+    today = date.today()
+    cutoff = (today + timedelta(days=closing_within)).isoformat()
+    res = sb.table("go_campaigns").select("go_code, deadline").eq("is_closed", False).not_.is_("deadline", "null").lte("deadline", cutoff).gte("deadline", today.isoformat()).execute()
+    codes = [r["go_code"] for r in (res.data or [])]
+    rows = _fetch_buyer_rows(codes)
+    body = _write_csv_rows(rows)
+    fname = f"GO_bulk_order_{today.isoformat()}_within{closing_within}d.csv"
+    return StreamingResponse(io.BytesIO(body), media_type="text/csv; charset=utf-8",
+                             headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+# ----------------------------------------------------------------------------
+# Cron: daily deadline check (D-day in {0,1,3,5,7}) — idempotent, rate-limited, heartbeat
+# Set CRON_SECRET in Railway, then schedule via cron-job.org GET request.
+# ----------------------------------------------------------------------------
+
+_LAST_CRON_HIT: Dict[str, float] = {}
+DDAY_THRESHOLDS = [0, 1, 3, 5, 7]
+
+@app.get("/cron/deadline-check")
+async def cron_deadline_check(secret: str = ""):
+    expected = os.environ.get("CRON_SECRET", "")
+    if not expected or secret != expected:
+        raise HTTPException(401, "secret required")
+    # Rate limit (per process): 1 call / 60s
+    nowt = time.time()
+    if nowt - _LAST_CRON_HIT.get("deadline-check", 0) < 60:
+        raise HTTPException(429, "rate limited")
+    _LAST_CRON_HIT["deadline-check"] = nowt
+    if not sb:
+        return {"ok": False, "error": "db not configured"}
+
+    today = date.today()
+    scope = f"deadline-check:{today.isoformat()}"
+    # Idempotency: if a row for (job, scope) already exists, this is a retry — skip Telegram send
+    prev = sb.table("cron_runs").select("id, ran_at").eq("job", "deadline-check").eq("scope", scope).execute()
+    if prev.data:
+        return {"ok": True, "skipped": "already ran today", "scope": scope, "first_ran_at": prev.data[0]["ran_at"]}
+
+    # Pull all open campaigns with a deadline, group by D-day
+    res = sb.table("go_campaigns").select("go_code, idol_name, album, retail_store, version, deadline").eq("is_closed", False).not_.is_("deadline", "null").execute()
+    by_dday: Dict[int, List[Dict[str, Any]]] = {k: [] for k in DDAY_THRESHOLDS}
+    for r in (res.data or []):
+        d = parse_date(r.get("deadline"))
+        if not d: continue
+        delta = (d - today).days
+        if delta in by_dday:
+            by_dday[delta].append(r)
+
+    # Build digest (always send — heartbeat ensures silence ≠ healthy)
+    lines = ["📅 GO 마감 알림 (자동)"]
+    has_any = any(by_dday.values())
+    if has_any:
+        for k, label in [(0, "🔴 D-0 (오늘 마감 — 23:59 KST)"), (1, "🚨 D-1"), (3, "⚠ D-3"), (5, "D-5"), (7, "D-7")]:
+            if by_dday[k]:
+                lines.append(f"\n{label}:")
+                for it in by_dday[k]:
+                    code = it["go_code"]; idol = it["idol_name"]; alb = it["album"]
+                    extra = it.get("retail_store") or it.get("version") or ""
+                    lines.append(f"  • {code} {idol} {alb} {extra}".rstrip())
+    else:
+        lines.append("\n오늘 마감 임박(0/1/3/5/7일) 항목 없음 (heartbeat ✓)")
+    lines.append(f"\n— {today.isoformat()} 09:00 KST 기준 / starphotocard-go")
+    msg = "\n".join(lines)
+    sent = await telegram_notify(msg)
+
+    # Audit (records dedup key — second call returns "skipped")
+    try:
+        sb.table("cron_runs").insert({
+            "job": "deadline-check", "scope": scope,
+            "result": {"sent": sent, "by_dday": {str(k): [r["go_code"] for r in v] for k, v in by_dday.items()}},
+        }).execute()
+    except Exception as e:
+        print(f"[cron_deadline_check] audit insert failed: {e}")
+    return {"ok": True, "sent": sent, "scope": scope, "by_dday": {k: len(v) for k, v in by_dday.items()}}
+
+# ----------------------------------------------------------------------------
+# FAQ (public)
+# ----------------------------------------------------------------------------
+
+@app.get("/faq", response_class=HTMLResponse)
+async def faq_page(request: Request):
+    return templates.TemplateResponse("faq.html", {"request": request})

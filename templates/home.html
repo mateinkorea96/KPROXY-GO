@@ -28,6 +28,9 @@
           {% if c.detail %}<div class="detail">{{ c.detail }}</div>{% endif %}
           {% if c.pob_store %}<div class="detail">POB: {{ c.pob_store }} · {{ c.pob_detail or '' }}</div>{% endif %}
           {% if c.set_price_krw %}<div class="price">₩{{ '{:,}'.format(c.set_price_krw|int) }}</div>{% endif %}
+          {% if c.buyer_count and c.buyer_count >= 3 %}
+            <div class="buyer-count">🛒 {{ c.buyer_count }} buyer{{ 's' if c.buyer_count != 1 else '' }} signed up</div>
+          {% endif %}
           {% if c.url %}<a class="muted" href="{{ c.url }}" target="_blank" rel="noopener">Source ↗</a>{% endif %}
         </article>
       {% endfor %}

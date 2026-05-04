@@ -4,10 +4,16 @@
 <h1>Alibaba Bulk-Buy Aggregate</h1>
 <p class="lead">Total quantity per GO across all submitted/confirmed orders. Use this to place your wholesale order.</p>
 
+<div class="filter-row">
+  <a class="btn primary" href="/admin/buyers.csv?closing_within=7">📥 Export ALL closing in 7 days (CSV)</a>
+  <a class="btn" href="/admin/buyers.csv?closing_within=3">📥 Export closing in 3 days</a>
+  <a class="btn" href="/admin/buyers.csv?closing_within=14">📥 Export closing in 14 days</a>
+</div>
+
 <table class="dt sticky">
   <thead><tr>
     <th>GO Code</th><th>Cat</th><th>Idol</th><th>Album</th><th>Ver/Store</th>
-    <th>Deadline</th><th>Status</th><th>Buyers</th><th>Total Qty</th><th>Total ₩</th>
+    <th>Deadline</th><th>Status</th><th>Buyers</th><th>Total Qty</th><th>Total ₩</th><th>Export</th>
   </tr></thead>
   <tbody>
   {% for r in rows %}
@@ -22,6 +28,7 @@
       <td>{{ r.buyer_count }}</td>
       <td><strong>{{ r.total_qty }}</strong></td>
       <td>₩{{ '{:,}'.format(r.total_krw|int) }}</td>
+      <td><a class="csv-btn" href="/admin/campaign/{{ r.go_code }}/buyers.csv">📥 CSV</a></td>
     </tr>
   {% endfor %}
   </tbody>
