@@ -1,4 +1,4 @@
-# starphotocard-go
+# mateinkorea-go
 
 K-pop **Group Order** management web app.
 Public buyer-facing order form + password-gated admin for GO campaign CRUD,
