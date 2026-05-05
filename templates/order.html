@@ -54,15 +54,6 @@
   <button type="submit" class="btn primary big">Submit order</button>
 </form>
 
-<style>
-.cat-tabs { display:flex; gap:6px; flex-wrap:wrap; }
-.cat-tab { background:#f5f5fa; color:#3a3a44; border:1px solid #e0e0e8; border-radius:8px; padding:8px 16px; font-size:14px; font-weight:500; cursor:pointer; transition:all 0.15s; display:inline-flex; align-items:center; gap:6px; }
-.cat-tab:hover { background:#ebebf2; }
-.cat-tab.active { background:linear-gradient(135deg, #ff2d8f 0%, #6610d4 100%); color:#fff; border-color:transparent; }
-.cat-tab.active .cat-count { background:rgba(255,255,255,0.25); color:#fff; }
-.cat-count { background:#dcdce4; color:#5a5a66; font-size:11px; font-weight:600; padding:1px 7px; border-radius:10px; min-width:14px; text-align:center; }
-</style>
-
 <script>
 const OPTIONS = {{ options|tojson }};
 let CURRENT_CAT = 'POCA_SET';

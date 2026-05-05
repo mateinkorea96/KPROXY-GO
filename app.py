@@ -289,7 +289,7 @@ async def health():
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    by_cat: Dict[str, List[Dict[str, Any]]] = {"POCA_SET": [], "ALBUM": [], "RESTOCK": []}
+    by_cat: Dict[str, List[Dict[str, Any]]] = {"POCA_SET": [], "ALBUM": [], "MD": []}
     error = None
     if not sb:
         error = "Service is being configured. Please check back shortly."

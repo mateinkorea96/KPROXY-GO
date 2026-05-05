@@ -10,35 +10,96 @@
 {% if error %}<div class="alert">{{ error }}</div>{% endif %}
 
 {% set labels = {'POCA_SET': 'Photocard Sets', 'ALBUM': 'Albums', 'MD': 'Merchandise'} %}
-{% for cat, items in by_cat.items() %}
-  {% if items %}
-    <h2 class="section-h">{{ labels[cat] }} <span class="count">{{ items|length }}</span></h2>
-    <div class="grid">
-      {% for c in items %}
-        <article class="card status-{{ c.status }}">
-          <header>
-            <span class="code">{{ c.go_code }}</span>
-            {% if c.status == 'closing_soon' %}<span class="pill warn">⚠ Closes in {{ c.d_day }}d</span>
-            {% else %}<span class="pill ok">{{ c.d_day }}d left</span>{% endif %}
-          </header>
-          <h3>{{ c.idol_name }} — {{ c.album }}</h3>
-          {% if c.version %}<div class="sub">{{ c.version }}</div>{% endif %}
-          {% if c.retail_store %}<div class="sub">@ {{ c.retail_store }}</div>{% endif %}
-          {% if c.set_detail %}<div class="detail">{{ c.set_detail }}</div>{% endif %}
-          {% if c.detail %}<div class="detail">{{ c.detail }}</div>{% endif %}
-          {% if c.pob_store %}<div class="detail">POB: {{ c.pob_store }} · {{ c.pob_detail or '' }}</div>{% endif %}
-          {% if c.set_price_krw %}<div class="price">₩{{ '{:,}'.format(c.set_price_krw|int) }}</div>{% endif %}
-          {% if c.buyer_count and c.buyer_count >= 3 %}
-            <div class="buyer-count">🛒 {{ c.buyer_count }} buyer{{ 's' if c.buyer_count != 1 else '' }} signed up</div>
-          {% endif %}
-          {% if c.url %}<a class="muted" href="{{ c.url }}" target="_blank" rel="noopener">Source ↗</a>{% endif %}
-        </article>
-      {% endfor %}
-    </div>
-  {% endif %}
+
+{% if active_count > 0 %}
+<div class="cat-tabs home-tabs" role="tablist">
+  {% for cat in ['POCA_SET', 'ALBUM', 'MD'] %}
+    <button type="button" class="cat-tab{% if loop.first %} active{% endif %}" data-cat-target="{{ cat }}" onclick="switchHomeCat('{{ cat }}', this)">
+      {{ labels[cat] }} <span class="cat-count">{{ by_cat[cat]|length }}</span>
+    </button>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% for cat in ['POCA_SET', 'ALBUM', 'MD'] %}
+  <section class="home-cat" data-cat="{{ cat }}"{% if not loop.first %} style="display:none"{% endif %}>
+    {% if by_cat[cat] %}
+      <div class="idol-tabs" data-for="{{ cat }}"></div>
+      <div class="grid">
+        {% for c in by_cat[cat] %}
+          <article class="card status-{{ c.status }}" data-idol="{{ c.idol_name }}">
+
+            <header>
+              <span class="code">{{ c.go_code }}</span>
+              {% if c.status == 'closing_soon' %}<span class="pill warn">⚠ Closes in {{ c.d_day }}d</span>
+              {% else %}<span class="pill ok">{{ c.d_day }}d left</span>{% endif %}
+            </header>
+            <h3>{{ c.idol_name }} — {{ c.album }}</h3>
+            {% if c.version %}<div class="sub">{{ c.version }}</div>{% endif %}
+            {% if c.retail_store %}<div class="sub">@ {{ c.retail_store }}</div>{% endif %}
+            {% if c.set_detail %}<div class="detail">{{ c.set_detail }}</div>{% endif %}
+            {% if c.detail %}<div class="detail">{{ c.detail }}</div>{% endif %}
+            {% if c.pob_store %}<div class="detail">POB: {{ c.pob_store }} · {{ c.pob_detail or '' }}</div>{% endif %}
+            {% if c.set_price_krw %}<div class="price">₩{{ '{:,}'.format(c.set_price_krw|int) }}</div>{% endif %}
+            {% if c.buyer_count and c.buyer_count >= 3 %}
+              <div class="buyer-count">🛒 {{ c.buyer_count }} buyer{{ 's' if c.buyer_count != 1 else '' }} signed up</div>
+            {% endif %}
+            {% if c.url %}<a class="muted" href="{{ c.url }}" target="_blank" rel="noopener">Source ↗</a>{% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">No active {{ labels[cat]|lower }} right now. Check back soon ✨</div>
+    {% endif %}
+  </section>
 {% endfor %}
 
 {% if active_count == 0 %}
   <div class="empty">No active group orders right now. Check back soon ✨</div>
 {% endif %}
+
+<style>
+.home-tabs { margin: 24px 0 20px; }
+</style>
+
+<script>
+function switchHomeCat(cat, btnEl) {
+  document.querySelectorAll('.cat-tab').forEach(b => b.classList.toggle('active', b === btnEl));
+  document.querySelectorAll('.home-cat').forEach(s => {
+    s.style.display = (s.dataset.cat === cat) ? '' : 'none';
+  });
+}
+
+// 각 카테고리 안에서 idol 서브탭 자동 생성. 카드의 data-idol 속성에서 distinct 추출.
+function buildIdolTabs() {
+  document.querySelectorAll('.home-cat').forEach(section => {
+    const tabsWrap = section.querySelector('.idol-tabs');
+    if (!tabsWrap) return;
+    const cards = [...section.querySelectorAll('.card')];
+    if (cards.length === 0) return;
+    const counts = new Map();
+    cards.forEach(c => {
+      const idol = c.dataset.idol || '(unknown)';
+      counts.set(idol, (counts.get(idol) || 0) + 1);
+    });
+    // 1 명만 있으면 서브탭 불필요
+    if (counts.size <= 1) { tabsWrap.style.display = 'none'; return; }
+    const sortedIdols = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    const html = `<button type="button" class="idol-tab active" data-idol="">All <span class="idol-count">${cards.length}</span></button>` +
+      sortedIdols.map(([name, n]) => `<button type="button" class="idol-tab" data-idol="${name}">${name} <span class="idol-count">${n}</span></button>`).join('');
+    tabsWrap.innerHTML = html;
+    tabsWrap.addEventListener('click', e => {
+      const btn = e.target.closest('.idol-tab');
+      if (!btn) return;
+      const idol = btn.dataset.idol;
+      tabsWrap.querySelectorAll('.idol-tab').forEach(b => b.classList.toggle('active', b === btn));
+      cards.forEach(c => {
+        c.style.display = (!idol || c.dataset.idol === idol) ? '' : 'none';
+      });
+    });
+  });
+}
+
+buildIdolTabs();
+</script>
 {% endblock %}
