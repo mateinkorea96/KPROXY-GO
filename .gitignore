@@ -9,3 +9,4 @@ venv/
 .DS_Store
 *.xlsx
 !sample.xlsx
+preview-*.html

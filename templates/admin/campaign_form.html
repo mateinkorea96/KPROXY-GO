@@ -17,15 +17,16 @@
     <label>Album <input name="album" required value="{{ row.album if row else '' }}"></label>
   </div>
 
-  {% if category in ['ALBUM', 'RESTOCK'] %}
+  {% if category == 'ALBUM' %}
   <label>Version <input name="version" value="{{ row.version if row else '' }}"></label>
   {% endif %}
 
   {% if category == 'POCA_SET' %}
   <label>Retail Store <input name="retail_store" value="{{ row.retail_store if row else '' }}"></label>
   <label>Set Detail <input name="set_detail" value="{{ row.set_detail if row else '' }}" placeholder="e.g. 5 MEMBER PHOTOCARD SET"></label>
-  {% elif category == 'RESTOCK' %}
-  <label>Detail <input name="detail" value="{{ row.detail if row else '' }}" placeholder="e.g. Random 1 of 5"></label>
+  {% elif category == 'MD' %}
+  <label>Retail Store <input name="retail_store" value="{{ row.retail_store if row else '' }}" placeholder="WEVERSE / YES24 / etc."></label>
+  <label>MD Detail <input name="set_detail" value="{{ row.set_detail if row else '' }}" placeholder="e.g. Random 1 of 5 keychains"></label>
   {% endif %}
 
   {% if category == 'ALBUM' %}

@@ -3,13 +3,13 @@
 {% block content %}
 <section class="hero">
   <h1>K-pop <em>Group Orders</em></h1>
-  <p class="lead">Pre-order official photocard sets, albums and restocks. Worldwide shipping via Alibaba.</p>
+  <p class="lead">Pre-order official photocard sets, albums and merchandise. Worldwide shipping via Alibaba.</p>
   <p><a class="btn primary" href="/order">Place an Order →</a></p>
 </section>
 
 {% if error %}<div class="alert">{{ error }}</div>{% endif %}
 
-{% set labels = {'POCA_SET': 'Photocard Sets', 'ALBUM': 'Albums', 'RESTOCK': 'Restock Albums'} %}
+{% set labels = {'POCA_SET': 'Photocard Sets', 'ALBUM': 'Albums', 'MD': 'Merchandise'} %}
 {% for cat, items in by_cat.items() %}
   {% if items %}
     <h2 class="section-h">{{ labels[cat] }} <span class="count">{{ items|length }}</span></h2>

@@ -2,7 +2,7 @@
 {% block title %}Import xlsx{% endblock %}
 {% block content %}
 <h1>Import xlsx</h1>
-<p class="lead">Upload your existing GO sheet (POCA SET / ALBUM / ALBUM RESTOCK tabs). Existing GO codes will be updated, new ones inserted.</p>
+<p class="lead">Upload your existing GO sheet (POCA SET / ALBUM / MD tabs). Existing GO codes will be updated, new ones inserted.</p>
 
 <form method="post" action="/admin/import" enctype="multipart/form-data" class="campaign-form">
   <label>xlsx file <input type="file" name="file" accept=".xlsx" required></label>
@@ -14,7 +14,7 @@
 <ul class="result-list">
   <li>POCA SET rows imported: <strong>{{ result.POCA_SET }}</strong></li>
   <li>ALBUM rows imported: <strong>{{ result.ALBUM }}</strong></li>
-  <li>RESTOCK rows imported: <strong>{{ result.RESTOCK }}</strong></li>
+  <li>MD rows imported: <strong>{{ result.MD }}</strong></li>
   {% if result.errors %}
   <li class="err">Errors:
     <ul>{% for e in result.errors %}<li>{{ e }}</li>{% endfor %}</ul>

@@ -33,6 +33,16 @@
   </fieldset>
 
   <fieldset>
+    <legend>Category</legend>
+    <p class="muted" style="margin:4px 0 10px">Pick the category first, then add items below.</p>
+    <div class="cat-tabs" role="tablist">
+      <button type="button" class="cat-tab active" data-cat="POCA_SET" onclick="setCategory('POCA_SET', this)">Photocard Sets <span class="cat-count" id="cat-count-POCA_SET">0</span></button>
+      <button type="button" class="cat-tab" data-cat="ALBUM" onclick="setCategory('ALBUM', this)">Albums <span class="cat-count" id="cat-count-ALBUM">0</span></button>
+      <button type="button" class="cat-tab" data-cat="MD" onclick="setCategory('MD', this)">Merchandise <span class="cat-count" id="cat-count-MD">0</span></button>
+    </div>
+  </fieldset>
+
+  <fieldset>
     <legend>Items</legend>
     <table class="items">
       <thead><tr><th>GO code</th><th>Item</th><th>Price</th><th>Qty</th><th></th></tr></thead>
@@ -44,8 +54,56 @@
   <button type="submit" class="btn primary big">Submit order</button>
 </form>
 
+<style>
+.cat-tabs { display:flex; gap:6px; flex-wrap:wrap; }
+.cat-tab { background:#f5f5fa; color:#3a3a44; border:1px solid #e0e0e8; border-radius:8px; padding:8px 16px; font-size:14px; font-weight:500; cursor:pointer; transition:all 0.15s; display:inline-flex; align-items:center; gap:6px; }
+.cat-tab:hover { background:#ebebf2; }
+.cat-tab.active { background:linear-gradient(135deg, #ff2d8f 0%, #6610d4 100%); color:#fff; border-color:transparent; }
+.cat-tab.active .cat-count { background:rgba(255,255,255,0.25); color:#fff; }
+.cat-count { background:#dcdce4; color:#5a5a66; font-size:11px; font-weight:600; padding:1px 7px; border-radius:10px; min-width:14px; text-align:center; }
+</style>
+
 <script>
 const OPTIONS = {{ options|tojson }};
+let CURRENT_CAT = 'POCA_SET';
+
+function categoryCounts() {
+  const counts = { POCA_SET: 0, ALBUM: 0, MD: 0 };
+  for (const o of OPTIONS) {
+    if (counts.hasOwnProperty(o.category)) counts[o.category]++;
+  }
+  return counts;
+}
+
+function renderCounts() {
+  const counts = categoryCounts();
+  for (const [cat, n] of Object.entries(counts)) {
+    const el = document.getElementById('cat-count-' + cat);
+    if (el) el.textContent = n;
+  }
+}
+
+function setCategory(cat, btnEl) {
+  CURRENT_CAT = cat;
+  document.querySelectorAll('.cat-tab').forEach(b => b.classList.toggle('active', b === btnEl));
+  // Re-render every existing row's dropdown to filter by new category
+  document.querySelectorAll('#rows select[name="go_code[]"]').forEach(sel => {
+    const prev = sel.value;
+    sel.innerHTML = buildOptionsHtml();
+    // Try to keep selection if it's still valid in this category
+    if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+    else { sel.value = ''; updatePrice(sel); }
+  });
+}
+
+function buildOptionsHtml() {
+  const filtered = OPTIONS.filter(o => o.category === CURRENT_CAT);
+  if (filtered.length === 0) {
+    return `<option value="">-- no ${CURRENT_CAT} GOs available --</option>`;
+  }
+  return `<option value="">-- choose GO --</option>` +
+    filtered.map(o => `<option value="${o.go_code}" data-price="${o.set_price_krw||0}">${o.go_code} · ${o.idol_name} ${o.album}${o.version?' '+o.version:''}${o.retail_store?' @ '+o.retail_store:''}</option>`).join('');
+}
 
 function addRow(prefill) {
   const tbody = document.getElementById('rows');
@@ -53,8 +111,7 @@ function addRow(prefill) {
   tr.innerHTML = `
     <td>
       <select name="go_code[]" onchange="updatePrice(this)" required>
-        <option value="">-- choose GO --</option>
-        ${OPTIONS.map(o => `<option value="${o.go_code}" data-price="${o.set_price_krw||0}">${o.go_code} · ${o.idol_name} ${o.album}${o.version?' '+o.version:''}${o.retail_store?' @ '+o.retail_store:''}</option>`).join('')}
+        ${buildOptionsHtml()}
       </select>
     </td>
     <td class="detail-cell"><span class="muted">— select a GO —</span></td>
@@ -74,9 +131,12 @@ function updatePrice(sel) {
   if (meta) {
     tr.querySelector('.detail-cell').innerHTML = (meta.set_detail || '') + (meta.set_detail ? '<br>' : '') +
       `<span class="muted">${meta.status === 'closing_soon' ? '⚠ closes in '+meta.d_day+'d' : meta.d_day+'d left'}</span>`;
+  } else {
+    tr.querySelector('.detail-cell').innerHTML = '<span class="muted">— select a GO —</span>';
   }
 }
 
+renderCounts();
 addRow();
 </script>
 {% endblock %}

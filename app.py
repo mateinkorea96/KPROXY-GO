@@ -85,14 +85,16 @@ def require_admin(session_id: Optional[str] = Cookie(None)):
 # Helpers
 # ----------------------------------------------------------------------------
 
-GO_CODE_RE = re.compile(r"^(GO|ALBUM|RESTOCK)-\d{3,}$")
+GO_CODE_RE = re.compile(r"^(GO|ALBUM|MD|RESTOCK)-\d{3,}$")  # RESTOCK kept for backward-compat with 3 historical codes
 
-CATEGORY_PREFIX = {"POCA_SET": "GO", "ALBUM": "ALBUM", "RESTOCK": "RESTOCK"}
+CATEGORY_PREFIX = {"POCA_SET": "GO", "ALBUM": "ALBUM", "MD": "MD"}
+# RESTOCK 카테고리는 2026-05-05 ALBUM 으로 통합. RESTOCK- prefix 의 historical 코드는 ALBUM 카테고리로 매핑됨.
 
 def category_for_code(code: str) -> str:
     if code.startswith("GO-"): return "POCA_SET"
     if code.startswith("ALBUM-"): return "ALBUM"
-    if code.startswith("RESTOCK-"): return "RESTOCK"
+    if code.startswith("MD-"): return "MD"
+    if code.startswith("RESTOCK-"): return "ALBUM"  # historical: RESTOCK 통합 후 ALBUM 으로 인식
     return "POCA_SET"
 
 def next_go_code(category: str) -> str:
@@ -573,7 +575,7 @@ async def admin_import_submit(request: Request, session_id: Optional[str] = Cook
     import openpyxl
     contents = await file.read()
     wb = openpyxl.load_workbook(io.BytesIO(contents), data_only=True)
-    summary = {"POCA_SET": 0, "ALBUM": 0, "RESTOCK": 0, "errors": []}
+    summary = {"POCA_SET": 0, "ALBUM": 0, "MD": 0, "errors": []}
 
     def upsert_rows(rows: List[Dict[str, Any]]):
         if not rows: return
@@ -635,24 +637,27 @@ async def admin_import_submit(request: Request, session_id: Optional[str] = Cook
             summary["ALBUM"] += 1
         upsert_rows(rows)
 
-    # ALBUM RESTOCK
-    if "ALBUM RESTOCK" in wb.sheetnames:
-        ws = wb["ALBUM RESTOCK"]
+    # MD (merchandise / 굿즈) — replaces former "ALBUM RESTOCK" sheet
+    # New sheet name: "MD". Code prefix: MD-NNN.
+    if "MD" in wb.sheetnames:
+        ws = wb["MD"]
         rows = []
         for r in ws.iter_rows(min_row=5, values_only=True):
             code = r[1]
-            if not code or not str(code).startswith("RESTOCK-"): continue
+            if not code or not str(code).startswith("MD-"): continue
             if not (r[2] and r[3]): continue
+            dl = parse_date(r[8]) if len(r) > 8 else None
             rows.append({
-                "go_code": str(code).strip(), "category": "RESTOCK",
+                "go_code": str(code).strip(), "category": "MD",
                 "idol_name": str(r[2]).strip(), "album": str(r[3]).strip(),
-                "version": (str(r[4]).strip() if r[4] else None),
+                "retail_store": (str(r[4]).strip() if r[4] else None),
                 "url": (str(r[5]).strip() if r[5] else None),
                 "set_price_krw": parse_num(r[6]),
-                "detail": (str(r[7]).strip() if r[7] else None),
-                "note": (str(r[8]).strip() if len(r) > 8 and r[8] else None),
+                "set_detail": (str(r[7]).strip() if r[7] else None),
+                "deadline": dl.isoformat() if dl else None,
+                "note": (str(r[11]).strip() if len(r) > 11 and r[11] else None),
             })
-            summary["RESTOCK"] += 1
+            summary["MD"] += 1
         upsert_rows(rows)
 
     return templates.TemplateResponse("admin/import.html", {"request": request, "result": summary})
