@@ -157,8 +157,9 @@ KAKAO_SEND_URL = "https://kapi.kakao.com/v2/api/talk/memo/default/send"
 
 async def _kakao_load_token() -> Optional[Dict[str, Any]]:
     if not sb: return None
-    res = sb.table("kakao_token").select("*").eq("id", 1).maybeSingle().execute()
-    return res.data
+    res = sb.table("kakao_token").select("*").eq("id", 1).limit(1).execute()
+    rows = res.data or []
+    return rows[0] if rows else None
 
 async def _kakao_save_token(access_token: Optional[str], refresh_token: Optional[str],
                             expires_in: Optional[int], refresh_expires_in: Optional[int],
