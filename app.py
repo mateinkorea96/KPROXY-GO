@@ -853,18 +853,53 @@ async def admin_kakao_callback(request: Request, code: str = "", error: str = ""
 
 @app.get("/admin/kakao/test")
 async def admin_kakao_test(session_id: Optional[str] = Cookie(None)):
+    """Send a test "memo to self" with full error diagnostics so we don't have to read Railway logs."""
     if (r := _admin_or_redirect(session_id)): return r
-    ok = await kakao_notify("🔧 starphotocard-go test message — Kakao 연동 확인용입니다. 실제 운영 시에는 새 주문이 들어오면 자동으로 알림이 옵니다.")
-    if ok:
-        return HTMLResponse(
-            "<h1>✅ 테스트 메시지 발송 완료</h1>"
-            "<p>본인 카카오톡 채팅 목록에서 '나에게 보내기' 방을 확인해주세요.</p>"
-            "<p><a href='/admin/dashboard'>← Admin Dashboard</a></p>"
-        )
-    return PlainTextResponse(
-        "Kakao 발송 실패. /admin/kakao/connect 를 먼저 실행해서 OAuth 권한 승인이 됐는지 확인해주세요. "
-        "Railway 로그에서 [kakao_notify] 또는 [kakao_refresh] 에러 메시지 확인 가능.",
-        status_code=502)
+    diagnostic: Dict[str, Any] = {"step": "start"}
+    try:
+        diagnostic["step"] = "load_token"
+        row = await _kakao_load_token()
+        diagnostic["token_row_present"] = bool(row)
+        diagnostic["has_access"] = bool(row and row.get("access_token"))
+        diagnostic["has_refresh"] = bool(row and row.get("refresh_token"))
+        diagnostic["scope"] = row.get("scope") if row else None
+        diagnostic["access_expires_at"] = row.get("access_expires_at") if row else None
+
+        diagnostic["step"] = "get_valid_access"
+        access = await _kakao_get_valid_access_token()
+        diagnostic["got_access_token"] = bool(access)
+        if not access:
+            return JSONResponse({"ok": False, "stage": "no_access_token", "diagnostic": diagnostic,
+                                 "hint": "Click /admin/kakao/connect again to re-authorize."}, status_code=502)
+
+        diagnostic["step"] = "send_memo"
+        # Minimal text template — link required by Kakao API.
+        template_object = {
+            "object_type": "text",
+            "text": "🔧 starphotocard-go test message — Kakao 연동 확인용입니다. 실제 운영 시에는 새 주문이 들어오면 자동 알림이 옵니다.",
+            "link": {"web_url": "https://starphotocard-go.up.railway.app",
+                     "mobile_web_url": "https://starphotocard-go.up.railway.app"},
+        }
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(KAKAO_SEND_URL,
+                                  headers={"Authorization": f"Bearer {access}"},
+                                  data={"template_object": json_dumps(template_object)})
+            diagnostic["kakao_status"] = r.status_code
+            try:
+                diagnostic["kakao_body"] = r.json()
+            except Exception:
+                diagnostic["kakao_body"] = r.text[:400]
+            if r.status_code == 200:
+                return HTMLResponse(
+                    "<h1>✅ 테스트 메시지 발송 완료</h1>"
+                    "<p>본인 카카오톡 채팅 목록에서 '나에게 보내기' 방을 확인해주세요.</p>"
+                    "<p><a href='/admin/dashboard'>← Admin Dashboard</a></p>"
+                    f"<details><summary>diagnostic</summary><pre>{json_dumps(diagnostic)}</pre></details>"
+                )
+            return JSONResponse({"ok": False, "stage": "kakao_api_error", "diagnostic": diagnostic}, status_code=502)
+    except Exception as e:
+        diagnostic["exception"] = f"{type(e).__name__}: {e}"
+        return JSONResponse({"ok": False, "stage": "exception", "diagnostic": diagnostic}, status_code=500)
 
 @app.get("/admin/kakao/status")
 async def admin_kakao_status(session_id: Optional[str] = Cookie(None)):
