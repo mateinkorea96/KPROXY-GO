@@ -33,6 +33,8 @@ SESSION_HOURS = int(os.environ.get("SESSION_HOURS", "24"))
 # Kakao "memo to self" API — used in place of Telegram. OAuth token refreshes every ~6h.
 KAKAO_REST_API_KEY = os.environ.get("KAKAO_REST_API_KEY", "")
 KAKAO_REDIRECT_URI = os.environ.get("KAKAO_REDIRECT_URI", "https://starphotocard-go.up.railway.app/admin/kakao/callback")
+# Optional — required only if the Kakao app has "Client Secret" enabled in 보안 settings.
+KAKAO_CLIENT_SECRET = os.environ.get("KAKAO_CLIENT_SECRET", "")
 # Telegram kept as fallback if Kakao not configured (gracefully no-ops if neither is set)
 TG_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TG_CHAT = os.environ.get("TELEGRAM_ADMIN_CHAT_ID", "")
@@ -195,11 +197,14 @@ async def _kakao_get_valid_access_token() -> Optional[str]:
     # Refresh
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.post(KAKAO_TOKEN_URL, data={
+            data = {
                 "grant_type": "refresh_token",
                 "client_id": KAKAO_REST_API_KEY,
                 "refresh_token": refresh,
-            })
+            }
+            if KAKAO_CLIENT_SECRET:
+                data["client_secret"] = KAKAO_CLIENT_SECRET
+            r = await client.post(KAKAO_TOKEN_URL, data=data)
             j = r.json()
             if r.status_code != 200 or not j.get("access_token"):
                 print(f"[kakao_refresh] failed {r.status_code}: {j}")
@@ -818,12 +823,15 @@ async def admin_kakao_callback(request: Request, code: str = "", error: str = ""
         return PlainTextResponse("KAKAO_REST_API_KEY not configured", status_code=503)
     try:
         async with httpx.AsyncClient(timeout=15) as client:
-            r = await client.post(KAKAO_TOKEN_URL, data={
+            data = {
                 "grant_type": "authorization_code",
                 "client_id": KAKAO_REST_API_KEY,
                 "redirect_uri": KAKAO_REDIRECT_URI,
                 "code": code,
-            })
+            }
+            if KAKAO_CLIENT_SECRET:
+                data["client_secret"] = KAKAO_CLIENT_SECRET
+            r = await client.post(KAKAO_TOKEN_URL, data=data)
             j = r.json()
             if r.status_code != 200 or not j.get("access_token"):
                 return PlainTextResponse(f"Kakao token exchange failed: {j}", status_code=502)
