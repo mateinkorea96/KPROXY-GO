@@ -27,8 +27,14 @@
       <div class="idol-tabs" data-for="{{ cat }}"></div>
       <div class="grid">
         {% for c in by_cat[cat] %}
-          <article class="card status-{{ c.status }}" data-idol="{{ c.idol_name }}">
-
+          <article class="card status-{{ c.status }}"
+                   data-idol="{{ c.idol_name }}"
+                   data-go="{{ c.go_code }}"
+                   data-album="{{ c.album }}"
+                   data-version="{{ c.version or '' }}"
+                   data-store="{{ c.retail_store or '' }}"
+                   data-detail="{{ c.set_detail or c.detail or '' }}"
+                   data-price="{{ c.set_price_krw|int if c.set_price_krw else '' }}">
             <header>
               <span class="code">{{ c.go_code }}</span>
               {% if c.status == 'closing_soon' %}<span class="pill warn">⚠ Closes in {{ c.d_day }}d</span>
@@ -45,6 +51,14 @@
               <div class="buyer-count">🛒 {{ c.buyer_count }} buyer{{ 's' if c.buyer_count != 1 else '' }} signed up</div>
             {% endif %}
             {% if c.url %}<a class="muted" href="{{ c.url }}" target="_blank" rel="noopener">Source ↗</a>{% endif %}
+            <div class="card-cart-row">
+              {% if c.set_price_krw %}
+                <input type="number" class="card-cart-qty" min="1" max="99" value="1" aria-label="Quantity">
+                <button type="button" class="card-add-btn" onclick="addCardToCart(this)">🛒 Add to Cart</button>
+              {% else %}
+                <span class="muted" style="font-size:11px">Price TBD — contact us</span>
+              {% endif %}
+            </div>
           </article>
         {% endfor %}
       </div>
@@ -58,11 +72,36 @@
   <div class="empty">No active group orders right now. Check back soon ✨</div>
 {% endif %}
 
+<!-- Floating cart FAB -->
+<button type="button" class="cart-fab" id="cart-fab" onclick="toggleCart(true)" style="display:none" aria-label="Open cart">
+  🛒 <span class="cart-badge" id="cart-badge">0</span>
+</button>
+
+<!-- Cart drawer -->
+<div class="cart-overlay" id="cart-overlay" onclick="toggleCart(false)"></div>
+<aside class="cart-drawer" id="cart-drawer" aria-hidden="true">
+  <div class="cart-header">
+    <h2 style="font-size:18px;margin:0">🛒 Your Cart</h2>
+    <button type="button" class="cart-close" onclick="toggleCart(false)" aria-label="Close cart">×</button>
+  </div>
+  <div class="cart-items" id="cart-items"></div>
+  <div class="cart-footer">
+    <div class="cart-total">
+      <span class="label">Total</span>
+      <span class="amount" id="cart-total-amount">₩0</span>
+    </div>
+    <a class="btn primary big" id="cart-checkout-btn" href="/order" style="display:block;text-align:center">Proceed to Checkout →</a>
+  </div>
+</aside>
+
 <style>
 .home-tabs { margin: 24px 0 20px; }
 </style>
 
 <script>
+// ─────────────────────────────────────────────
+// Category + idol filter (existing)
+// ─────────────────────────────────────────────
 function switchHomeCat(cat, btnEl) {
   document.querySelectorAll('.cat-tab').forEach(b => b.classList.toggle('active', b === btnEl));
   document.querySelectorAll('.home-cat').forEach(s => {
@@ -70,7 +109,6 @@ function switchHomeCat(cat, btnEl) {
   });
 }
 
-// 각 카테고리 안에서 idol 서브탭 자동 생성. 카드의 data-idol 속성에서 distinct 추출.
 function buildIdolTabs() {
   document.querySelectorAll('.home-cat').forEach(section => {
     const tabsWrap = section.querySelector('.idol-tabs');
@@ -82,7 +120,6 @@ function buildIdolTabs() {
       const idol = c.dataset.idol || '(unknown)';
       counts.set(idol, (counts.get(idol) || 0) + 1);
     });
-    // 1 명만 있으면 서브탭 불필요
     if (counts.size <= 1) { tabsWrap.style.display = 'none'; return; }
     const sortedIdols = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
     const html = `<button type="button" class="idol-tab active" data-idol="">All <span class="idol-count">${cards.length}</span></button>` +
@@ -100,6 +137,142 @@ function buildIdolTabs() {
   });
 }
 
+// ─────────────────────────────────────────────
+// Cart (localStorage)
+// ─────────────────────────────────────────────
+const CART_KEY = 'starphotocard_cart_v1';
+
+function loadCart() {
+  try { return JSON.parse(localStorage.getItem(CART_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function saveCart(cart) {
+  localStorage.setItem(CART_KEY, JSON.stringify(cart));
+  renderCart();
+}
+
+function addCardToCart(btn) {
+  const card = btn.closest('.card');
+  if (!card) return;
+  const qtyInput = card.querySelector('.card-cart-qty');
+  const qty = Math.max(1, parseInt(qtyInput.value) || 1);
+  const item = {
+    go_code: card.dataset.go,
+    idol:    card.dataset.idol,
+    album:   card.dataset.album,
+    version: card.dataset.version,
+    store:   card.dataset.store,
+    detail:  card.dataset.detail,
+    price:   parseInt(card.dataset.price) || 0,
+    qty,
+  };
+  const cart = loadCart();
+  const existing = cart.find(i => i.go_code === item.go_code);
+  if (existing) existing.qty += qty;
+  else cart.push(item);
+  saveCart(cart);
+  // Brief animation feedback on FAB
+  const fab = document.getElementById('cart-fab');
+  fab.classList.remove('bump');
+  void fab.offsetWidth;
+  fab.classList.add('bump');
+  qtyInput.value = 1;
+}
+
+function updateCartItemQty(go_code, delta) {
+  const cart = loadCart();
+  const item = cart.find(i => i.go_code === go_code);
+  if (!item) return;
+  item.qty = Math.max(0, item.qty + delta);
+  if (item.qty === 0) saveCart(cart.filter(i => i.go_code !== go_code));
+  else saveCart(cart);
+}
+
+function removeFromCart(go_code) {
+  saveCart(loadCart().filter(i => i.go_code !== go_code));
+}
+
+function clearCart() {
+  if (!confirm('Empty the cart?')) return;
+  saveCart([]);
+}
+
+function renderCart() {
+  const cart = loadCart();
+  const totalItems = cart.reduce((s, i) => s + i.qty, 0);
+  const totalKrw = cart.reduce((s, i) => s + (i.price * i.qty), 0);
+  // FAB
+  const fab = document.getElementById('cart-fab');
+  const badge = document.getElementById('cart-badge');
+  if (fab && badge) {
+    badge.textContent = totalItems;
+    fab.style.display = totalItems > 0 ? 'flex' : 'none';
+  }
+  // Drawer items
+  const itemsEl = document.getElementById('cart-items');
+  if (itemsEl) {
+    if (cart.length === 0) {
+      itemsEl.innerHTML = '<div class="empty" style="margin:30px 0">Your cart is empty.</div>';
+    } else {
+      itemsEl.innerHTML = cart.map(i => `
+        <div class="cart-item">
+          <div class="cart-item-head">
+            <span class="cart-item-code">${escapeHtml(i.go_code)}</span>
+            <button type="button" class="cart-item-remove" onclick="removeFromCart('${escapeAttr(i.go_code)}')" aria-label="Remove">×</button>
+          </div>
+          <div class="cart-item-name">${escapeHtml(i.idol)} — ${escapeHtml(i.album)}</div>
+          ${i.version || i.store ? `<div class="cart-item-sub">${escapeHtml(i.version || i.store)}</div>` : ''}
+          ${i.detail ? `<div class="cart-item-sub">${escapeHtml(i.detail)}</div>` : ''}
+          <div class="cart-item-foot">
+            <div class="cart-qty-ctrl">
+              <button type="button" onclick="updateCartItemQty('${escapeAttr(i.go_code)}', -1)" aria-label="Decrease">−</button>
+              <span>${i.qty}</span>
+              <button type="button" onclick="updateCartItemQty('${escapeAttr(i.go_code)}', 1)" aria-label="Increase">+</button>
+            </div>
+            <div class="cart-item-price">₩${(i.price * i.qty).toLocaleString()}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+  // Total
+  const totalEl = document.getElementById('cart-total-amount');
+  if (totalEl) totalEl.textContent = '₩' + totalKrw.toLocaleString();
+  // Checkout button enable/disable
+  const checkoutBtn = document.getElementById('cart-checkout-btn');
+  if (checkoutBtn) {
+    if (totalItems === 0) {
+      checkoutBtn.style.opacity = '0.5';
+      checkoutBtn.style.pointerEvents = 'none';
+    } else {
+      checkoutBtn.style.opacity = '';
+      checkoutBtn.style.pointerEvents = '';
+    }
+  }
+}
+
+function toggleCart(open) {
+  const drawer = document.getElementById('cart-drawer');
+  const overlay = document.getElementById('cart-overlay');
+  if (open) {
+    drawer.classList.add('open');
+    overlay.classList.add('show');
+    drawer.setAttribute('aria-hidden', 'false');
+  } else {
+    drawer.classList.remove('open');
+    overlay.classList.remove('show');
+    drawer.setAttribute('aria-hidden', 'true');
+  }
+}
+
+function escapeHtml(s) {
+  return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function escapeAttr(s) { return escapeHtml(s).replace(/'/g, "\\'"); }
+
+// Init
 buildIdolTabs();
+renderCart();
 </script>
 {% endblock %}
