@@ -738,10 +738,11 @@ async def cron_deadline_check(secret: str = ""):
     expected = os.environ.get("CRON_SECRET", "")
     if not expected or secret != expected:
         raise HTTPException(401, "secret required")
-    # Rate limit (per process): 1 call / 60s
+    # Soft rate limit (per process): 1 call / 60s. Returns 200+skipped instead of 429 so cron-job.org's
+    # retry-on-failure logic doesn't loop or send false-failure emails.
     nowt = time.time()
     if nowt - _LAST_CRON_HIT.get("deadline-check", 0) < 60:
-        raise HTTPException(429, "rate limited")
+        return {"ok": True, "skipped": "rate-limited (1 call / 60s)", "scope": f"deadline-check:{date.today().isoformat()}"}
     _LAST_CRON_HIT["deadline-check"] = nowt
     if not sb:
         return {"ok": False, "error": "db not configured"}
