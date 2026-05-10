@@ -10,3 +10,7 @@ venv/
 *.xlsx
 !sample.xlsx
 preview-*.html
+
+# Local debug / inspection scripts (not meant for repo)
+inspect_xlsx.py
+
