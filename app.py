@@ -13,7 +13,8 @@ import re
 import secrets
 import time
 from datetime import datetime, date, timedelta
-from typing import Optional, List, Dict, Any
+from zoneinfo import ZoneInfo
+from typing import Optional, List, Dict, Any, Tuple
 
 import httpx
 from fastapi import FastAPI, Request, Form, Cookie, HTTPException, UploadFile, File, Depends
@@ -293,7 +294,7 @@ async def home(request: Request):
     error = None
     if not sb:
         error = "Service is being configured. Please check back shortly."
-        return templates.TemplateResponse("home.html", {"request": request, "by_cat": by_cat, "active_count": 0, "error": error})
+        return templates.TemplateResponse("home.html", {"request": request, "by_cat": by_cat, "active_count": 0, "error": error, "popups": []})
     res = sb.table("go_campaigns").select("*").order("category").order("deadline", desc=False).execute()
     enriched = _enrich_status(res.data or [])
     active = [c for c in enriched if c["status"] in ("open", "closing_soon")]
@@ -306,7 +307,14 @@ async def home(request: Request):
     for c in active:
         c["buyer_count"] = bc_map.get(c["go_code"], 0)
         by_cat[c["category"]].append(c)
-    return templates.TemplateResponse("home.html", {"request": request, "by_cat": by_cat, "active_count": len(active), "error": None})
+    # Fetch active popups for banner section
+    today_kst = datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()
+    try:
+        popups_res = sb.table("popup_events").select("id, title, group_name, start_date, end_date").eq("is_active", True).or_(f"end_date.is.null,end_date.gte.{today_kst}").order("created_at", desc=True).execute()
+        popups = popups_res.data or []
+    except Exception:
+        popups = []
+    return templates.TemplateResponse("home.html", {"request": request, "by_cat": by_cat, "active_count": len(active), "error": None, "popups": popups})
 
 @app.get("/order", response_class=HTMLResponse)
 async def order_form(request: Request):
@@ -374,6 +382,26 @@ async def order_submit(request: Request):
 @app.get("/order/success", response_class=HTMLResponse)
 async def order_success(request: Request, id: int):
     return templates.TemplateResponse("order_success.html", {"request": request, "order_id": id})
+
+@app.get("/popup/{popup_id}", response_class=HTMLResponse)
+async def popup_detail(request: Request, popup_id: int):
+    if not sb:
+        raise HTTPException(503, "Service unavailable")
+    popup_res = sb.table("popup_events").select("*").eq("id", popup_id).eq("is_active", True).execute()
+    if not popup_res.data:
+        raise HTTPException(404, "Popup not found or not active")
+    popup = popup_res.data[0]
+    # Check end_date >= today (KST)
+    today_kst = datetime.now(ZoneInfo("Asia/Seoul")).date()
+    end_date = parse_date(popup.get("end_date"))
+    if end_date is not None and end_date < today_kst:
+        raise HTTPException(404, "Popup has ended")
+    prods_res = sb.table("popup_products").select("*").eq("popup_id", popup_id).order("no").execute()
+    return templates.TemplateResponse("popup_detail.html", {
+        "request": request,
+        "popup": popup,
+        "products": prods_res.data or [],
+    })
 
 # ----------------------------------------------------------------------------
 # Admin — login
@@ -453,6 +481,233 @@ async def admin_campaign_new(request: Request, session_id: Optional[str] = Cooki
     return templates.TemplateResponse("admin/campaign_form.html", {
         "request": request, "row": None, "category": category, "is_new": True,
     })
+
+# ----------------------------------------------------------------------------
+# Admin — popup_events CRUD (B1)
+# ----------------------------------------------------------------------------
+
+def _popup_payload_from_form(form) -> Dict[str, Any]:
+    start = parse_date(form.get("start_date"))
+    end = parse_date(form.get("end_date"))
+    return {
+        "title": (form.get("title") or "").strip(),
+        "group_name": (form.get("group_name") or "").strip(),
+        "start_date": start.isoformat() if start else None,
+        "end_date": end.isoformat() if end else None,
+    }
+
+@app.get("/admin/popups", response_class=HTMLResponse)
+async def admin_popups(request: Request, session_id: Optional[str] = Cookie(None)):
+    if (r := _admin_or_redirect(session_id)): return r
+    if not sb: return PlainTextResponse("DB not configured", status_code=503)
+    res = sb.table("popup_events").select("*").order("created_at", desc=True).execute()
+    return templates.TemplateResponse("admin/popups.html", {"request": request, "rows": res.data or []})
+
+@app.get("/admin/popup/new", response_class=HTMLResponse)
+async def admin_popup_new(request: Request, session_id: Optional[str] = Cookie(None)):
+    if (r := _admin_or_redirect(session_id)): return r
+    return templates.TemplateResponse("admin/popup_form.html", {
+        "request": request, "row": None, "is_new": True,
+    })
+
+@app.post("/admin/popup/new")
+async def admin_popup_create(request: Request, session_id: Optional[str] = Cookie(None)):
+    if (r := _admin_or_redirect(session_id)): return r
+    if not sb: return PlainTextResponse("DB not configured", status_code=503)
+    form = await request.form()
+    payload = _popup_payload_from_form(form)
+    sb.table("popup_events").insert(payload).execute()
+    return RedirectResponse("/admin/popups", status_code=302)
+
+@app.get("/admin/popup/{popup_id}/edit", response_class=HTMLResponse)
+async def admin_popup_edit(request: Request, popup_id: int, session_id: Optional[str] = Cookie(None)):
+    if (r := _admin_or_redirect(session_id)): return r
+    if not sb: return PlainTextResponse("DB not configured", status_code=503)
+    res = sb.table("popup_events").select("*").eq("id", popup_id).execute()
+    if not res.data: raise HTTPException(404, "Popup not found")
+    return templates.TemplateResponse("admin/popup_form.html", {
+        "request": request, "row": res.data[0], "is_new": False,
+    })
+
+@app.post("/admin/popup/{popup_id}/edit")
+async def admin_popup_update(request: Request, popup_id: int, session_id: Optional[str] = Cookie(None)):
+    if (r := _admin_or_redirect(session_id)): return r
+    if not sb: return PlainTextResponse("DB not configured", status_code=503)
+    chk = sb.table("popup_events").select("id").eq("id", popup_id).execute()
+    if not chk.data: raise HTTPException(404, "Popup not found")
+    form = await request.form()
+    payload = _popup_payload_from_form(form)
+    payload["updated_at"] = _now().isoformat()
+    sb.table("popup_events").update(payload).eq("id", popup_id).execute()
+    return RedirectResponse("/admin/popups", status_code=302)
+
+@app.post("/admin/popup/{popup_id}/delete")
+async def admin_popup_delete(request: Request, popup_id: int, session_id: Optional[str] = Cookie(None)):
+    if (r := _admin_or_redirect(session_id)): return r
+    if not sb: return PlainTextResponse("DB not configured", status_code=503)
+    chk = sb.table("popup_events").select("id").eq("id", popup_id).execute()
+    if not chk.data: raise HTTPException(404, "Popup not found")
+    sb.table("popup_events").delete().eq("id", popup_id).execute()
+    return RedirectResponse("/admin/popups", status_code=302)
+
+@app.post("/admin/popup/{popup_id}/toggle-active")
+async def admin_popup_toggle_active(request: Request, popup_id: int, session_id: Optional[str] = Cookie(None)):
+    if (r := _admin_or_redirect(session_id)): return r
+    if not sb: return PlainTextResponse("DB not configured", status_code=503)
+    cur = sb.table("popup_events").select("is_active").eq("id", popup_id).execute()
+    if not cur.data: raise HTTPException(404, "Popup not found")
+    new_val = not bool(cur.data[0]["is_active"])
+    sb.table("popup_events").update({"is_active": new_val, "updated_at": _now().isoformat()}).eq("id", popup_id).execute()
+    return RedirectResponse("/admin/popups", status_code=302)
+
+# ----------------------------------------------------------------------------
+# Admin — popup_products Excel upload (B2)
+# ----------------------------------------------------------------------------
+
+def _parse_popup_price(val: Any) -> Tuple[Optional[int], Optional[str]]:
+    """Parse a price value from Excel. Returns (int_or_None, error_str_or_None)."""
+    if val is None or (isinstance(val, str) and not val.strip()):
+        return None, None
+    # Strip currency symbols and whitespace
+    s = re.sub(r"[₩,\s]", "", str(val))
+    s = re.sub(r"(?i)krw|원", "", s).strip()
+    if not s:
+        return None, None
+    try:
+        v = int(float(s))
+        if v < 0:
+            return None, f"Negative price: {val!r}"
+        return v, None
+    except (ValueError, TypeError):
+        return None, f"Unparseable price: {val!r}"
+
+def _parse_popup_xlsx(file_bytes: bytes) -> Tuple[List[Dict[str, Any]], List[str]]:
+    """Parse popup products xlsx. Returns (rows, errors)."""
+    import openpyxl
+    errors: List[str] = []
+    rows: List[Dict[str, Any]] = []
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+    except Exception as e:
+        return [], [f"Cannot open workbook: {e}"]
+    ws = wb.active
+    if ws is None:
+        return [], ["Workbook has no active sheet"]
+    # Header sanity check: D1 should contain "Product Name" or "상품명"
+    header_d = ws.cell(row=1, column=4).value
+    if header_d is None or ("product name" not in str(header_d).lower() and "상품명" not in str(header_d).lower()):
+        errors.append(f"Header sanity check failed: D1 = {header_d!r} (expected 'Product Name' or '상품명')")
+        return [], errors
+    # Iterate rows starting from row 2, columns B(2) through G(7)
+    for row_idx, row in enumerate(ws.iter_rows(min_row=2, min_col=2, max_col=7, values_only=True), start=2):
+        # row[0]=No(B), row[1]=GROUP(C), row[2]=Product Name(D), row[3]=Option(E), row[4]=Price KRW(F), row[5]=URL(G)
+        product_name = row[2]
+        if product_name is None or (isinstance(product_name, str) and not product_name.strip()):
+            continue  # skip blank rows
+        product_name = str(product_name).strip()
+        no_val = row[0]
+        try:
+            no = int(no_val) if no_val is not None and str(no_val).strip() else None
+        except (ValueError, TypeError):
+            errors.append(f"Row {row_idx}: invalid No value {no_val!r}, treated as null")
+            no = None
+        group_name_val = row[1]
+        group_name = str(group_name_val).strip() if group_name_val is not None else None
+        option_val = row[3]
+        option_name = str(option_val).strip() if option_val is not None and str(option_val).strip() else None
+        price_krw, price_err = _parse_popup_price(row[4])
+        if price_err:
+            errors.append(f"Row {row_idx}: {price_err}")
+            continue
+        url_val = row[5]
+        url = str(url_val).strip() if url_val is not None and str(url_val).strip() else None
+        rows.append({
+            "no": no,
+            "group_name": group_name,
+            "product_name": product_name,
+            "option_name": option_name,
+            "price_krw": price_krw,
+            "url": url,
+        })
+    return rows, errors
+
+@app.get("/admin/products/new", response_class=HTMLResponse)
+async def admin_products_new(request: Request, session_id: Optional[str] = Cookie(None)):
+    if (r := _admin_or_redirect(session_id)): return r
+    if not sb: return PlainTextResponse("DB not configured", status_code=503)
+    popups = sb.table("popup_events").select("id, title, group_name").order("created_at", desc=True).execute()
+    return templates.TemplateResponse("admin/popup_upload.html", {
+        "request": request, "popups": popups.data or [], "result": None,
+    })
+
+@app.post("/admin/products/new", response_class=HTMLResponse)
+async def admin_products_upload(request: Request, session_id: Optional[str] = Cookie(None), file: UploadFile = File(...)):
+    if (r := _admin_or_redirect(session_id)): return r
+    if not sb: return PlainTextResponse("DB not configured", status_code=503)
+    popups_res = sb.table("popup_events").select("id, title, group_name").order("created_at", desc=True).execute()
+    popups = popups_res.data or []
+    form = await request.form()
+    popup_id_raw = form.get("popup_id")
+    try:
+        popup_id = int(popup_id_raw)
+    except (TypeError, ValueError):
+        return templates.TemplateResponse("admin/popup_upload.html", {
+            "request": request, "popups": popups,
+            "result": {"error": "Invalid popup selection."},
+        })
+    # Verify popup exists
+    chk = sb.table("popup_events").select("id").eq("id", popup_id).execute()
+    if not chk.data:
+        return templates.TemplateResponse("admin/popup_upload.html", {
+            "request": request, "popups": popups,
+            "result": {"error": "Selected popup does not exist."},
+        })
+    file_bytes = await file.read()
+    parsed_rows, parse_errors = _parse_popup_xlsx(file_bytes)
+    # Step 1: delete existing products for this popup
+    del_res = sb.table("popup_products").delete().eq("popup_id", popup_id).execute()
+    deleted_count = len(del_res.data) if del_res.data else 0
+    # Step 2: insert row by row (per-row error tolerance)
+    inserted_count = 0
+    insert_errors: List[str] = list(parse_errors)
+    for pr in parsed_rows:
+        try:
+            sb.table("popup_products").insert({**pr, "popup_id": popup_id}).execute()
+            inserted_count += 1
+        except Exception as e:
+            insert_errors.append(f"Insert failed for '{pr.get('product_name')}': {e}")
+    result = {
+        "deleted_count": deleted_count,
+        "inserted_count": inserted_count,
+        "error_count": len(insert_errors),
+        "errors": insert_errors[:20],
+    }
+    return templates.TemplateResponse("admin/popup_upload.html", {
+        "request": request, "popups": popups, "result": result,
+    })
+
+@app.get("/admin/popup/{popup_id}/products", response_class=HTMLResponse)
+async def admin_popup_products(request: Request, popup_id: int, session_id: Optional[str] = Cookie(None)):
+    if (r := _admin_or_redirect(session_id)): return r
+    if not sb: return PlainTextResponse("DB not configured", status_code=503)
+    popup_res = sb.table("popup_events").select("*").eq("id", popup_id).execute()
+    if not popup_res.data: raise HTTPException(404, "Popup not found")
+    prods_res = sb.table("popup_products").select("*").eq("popup_id", popup_id).order("no").execute()
+    return templates.TemplateResponse("admin/popup_products.html", {
+        "request": request,
+        "popup": popup_res.data[0],
+        "products": prods_res.data or [],
+    })
+
+@app.post("/admin/popup/{popup_id}/products/{pid}/delete")
+async def admin_popup_product_delete(request: Request, popup_id: int, pid: int, session_id: Optional[str] = Cookie(None)):
+    if (r := _admin_or_redirect(session_id)): return r
+    if not sb: return PlainTextResponse("DB not configured", status_code=503)
+    chk = sb.table("popup_events").select("id").eq("id", popup_id).execute()
+    if not chk.data:
+        raise HTTPException(404, "Popup not found")
+    sb.table("popup_products").delete().eq("id", pid).eq("popup_id", popup_id).execute()
+    return RedirectResponse(f"/admin/popup/{popup_id}/products", status_code=302)
 
 @app.post("/admin/campaign/new")
 async def admin_campaign_create(request: Request, session_id: Optional[str] = Cookie(None)):

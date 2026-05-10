@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ 'New Pop Up' if is_new else 'Edit Pop Up' }}{% endblock %}
+{% block content %}
+<h1>{{ 'New Pop Up' if is_new else 'Edit Pop Up' }}</h1>
+
+<form method="post" action="{{ '/admin/popup/new' if is_new else '/admin/popup/' + row.id|string + '/edit' }}" class="campaign-form">
+
+  <label>Title <input name="title" required value="{{ row.title if row else '' }}" placeholder="e.g. Cortis – Greengreen Pop-Up"></label>
+  <label>Group Name <input name="group_name" required value="{{ row.group_name if row else '' }}" placeholder="e.g. CORTIS"></label>
+
+  <div class="row2">
+    <label>Start Date <input name="start_date" type="date" value="{{ row.start_date if row and row.start_date else '' }}"></label>
+    <label>End Date <input name="end_date" type="date" value="{{ row.end_date if row and row.end_date else '' }}"></label>
+  </div>
+
+  <div class="actions">
+    <a class="btn" href="/admin/popups">Cancel</a>
+    <button class="btn primary">{{ 'Create' if is_new else 'Save' }}</button>
+  </div>
+</form>
+{% endblock %}

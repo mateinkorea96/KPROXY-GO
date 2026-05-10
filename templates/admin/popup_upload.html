@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Upload Pop Up Products{% endblock %}
+{% block content %}
+<h1>Upload Pop Up Products</h1>
+<p class="muted">Upload an Excel file (.xlsx) to set products for a pop-up event. <strong>This replaces all existing products for the selected pop-up.</strong></p>
+
+{% if not popups %}
+  <div class="empty">No pop up events found. <a href="/admin/popup/new">Create a Pop Up first →</a></div>
+{% else %}
+
+{% if result and result.error %}
+  <div class="alert">{{ result.error }}</div>
+{% endif %}
+
+{% if result and not result.error %}
+  <div class="import-summary">
+    <p>✓ <strong>{{ result.inserted_count }}</strong> product(s) inserted &nbsp;·&nbsp; {{ result.deleted_count }} previous row(s) removed &nbsp;·&nbsp; {{ result.error_count }} error(s)</p>
+    {% if result.errors %}
+      <ul class="error-list">
+        {% for e in result.errors %}<li>{{ e }}</li>{% endfor %}
+        {% if result.error_count > result.errors|length %}<li><em>… and {{ result.error_count - result.errors|length }} more</em></li>{% endif %}
+      </ul>
+    {% endif %}
+  </div>
+{% endif %}
+
+<form method="post" action="/admin/products/new" enctype="multipart/form-data" class="campaign-form">
+  <label>Pop Up Event
+    <select name="popup_id" required>
+      <option value="">— Select a pop-up —</option>
+      {% for p in popups %}
+        <option value="{{ p.id }}"
+          {% if result and request.query_params.get('popup_id') == p.id|string %}selected{% endif %}>
+          #{{ p.id }} — {{ p.title }} ({{ p.group_name }})
+        </option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label>Excel file (.xlsx)
+    <input type="file" name="file" accept=".xlsx" required>
+  </label>
+
+  <div class="actions">
+    <a class="btn" href="/admin/popups">Cancel</a>
+    <button class="btn primary">Upload &amp; Replace</button>
+  </div>
+</form>
+
+{% endif %}
+{% endblock %}

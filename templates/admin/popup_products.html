@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Products — {{ popup.title }}{% endblock %}
+{% block content %}
+<h1>Products — {{ popup.title }}</h1>
+<p class="muted">
+  Group: <strong>{{ popup.group_name }}</strong>
+  {% if popup.start_date or popup.end_date %}
+    &nbsp;·&nbsp; Period: {{ popup.start_date or '?' }} – {{ popup.end_date or 'open' }}
+  {% endif %}
+  &nbsp;·&nbsp; <a href="/admin/popups">← Back to Pop Ups</a>
+</p>
+<div style="margin-bottom:16px">
+  <a class="btn" href="/admin/products/new">Upload New Products</a>
+</div>
+
+<table class="dt sticky">
+  <thead><tr>
+    <th>No</th><th>Group</th><th>Product Name</th><th>Option</th><th>Price (KRW)</th><th>URL</th><th>Action</th>
+  </tr></thead>
+  <tbody>
+  {% for p in products %}
+    <tr>
+      <td>{{ p.no or '—' }}</td>
+      <td>{{ p.group_name or '—' }}</td>
+      <td>{{ p.product_name }}</td>
+      <td>{{ p.option_name or '—' }}</td>
+      <td>{{ '₩{:,}'.format(p.price_krw|int) if p.price_krw else '—' }}</td>
+      <td>
+        {% if p.url %}<a href="{{ p.url }}" target="_blank" rel="noopener">Link ↗</a>{% else %}—{% endif %}
+      </td>
+      <td>
+        <form method="post" action="/admin/popup/{{ popup.id }}/products/{{ p.id }}/delete" style="display:inline"
+              onsubmit="return confirm('Delete this product?')">
+          <button class="link danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if not products %}<div class="empty">No products yet. <a href="/admin/products/new">Upload products →</a></div>{% endif %}
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Manage Pop Ups{% endblock %}
+{% block content %}
+<h1>Pop Up Events</h1>
+<div style="margin-bottom:16px">
+  <a class="btn primary" href="/admin/popup/new">+ New Pop Up</a>
+  <a class="btn" href="/admin/products/new" style="margin-left:8px">+ Upload Products</a>
+</div>
+
+<table class="dt sticky">
+  <thead><tr>
+    <th>ID</th><th>Title</th><th>Group</th><th>Start</th><th>End</th><th>Active</th><th>Actions</th>
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td><code>{{ r.id }}</code></td>
+      <td>{{ r.title }}</td>
+      <td>{{ r.group_name }}</td>
+      <td>{{ r.start_date or '—' }}</td>
+      <td>{{ r.end_date or '—' }}</td>
+      <td>
+        {% if r.is_active %}<span class="pill ok">Active</span>{% else %}<span class="pill">Inactive</span>{% endif %}
+      </td>
+      <td class="actions">
+        <a href="/admin/popup/{{ r.id }}/edit">Edit</a>
+        <a href="/admin/popup/{{ r.id }}/products">Products</a>
+        <form method="post" action="/admin/popup/{{ r.id }}/toggle-active" style="display:inline">
+          <button class="link">{{ 'Deactivate' if r.is_active else 'Activate' }}</button>
+        </form>
+        <form method="post" action="/admin/popup/{{ r.id }}/delete" style="display:inline" onsubmit="return confirm('Delete popup #{{ r.id }}? Products will also be deleted.')">
+          <button class="link danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if not rows %}<div class="empty">No pop up events yet. <a href="/admin/popup/new">Create one →</a></div>{% endif %}
+{% endblock %}
