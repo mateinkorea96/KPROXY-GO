@@ -2,16 +2,6 @@
 {% block title %}greengreen pop up | CORTIS{% endblock %}
 {% block content %}
 <section class="popup-hero">
-  <div class="popup-hero-copy">
-    <div class="hero-kicker">Now open for overseas order</div>
-    <h1><span>greengreen pop up</span></h1>
-    <p class="hero-artist">CORTIS</p>
-    <p class="lead">Browse pop-up exclusive items, albums, and official goods from Korea. Select your items and place an order in one flow.</p>
-    <div class="hero-actions">
-      <a class="btn primary big" href="#popup-events">View Pop-up</a>
-      <a class="btn big" href="/order">Order Now</a>
-    </div>
-  </div>
   <div class="popup-hero-art" aria-label="greengreen pop up CORTIS banner">
     <img src="/static/img/greengreen-popup-banner.svg" alt="greengreen pop up CORTIS visual banner" />
   </div>
@@ -21,10 +11,6 @@
 
 {% if popups %}
 <section class="popup-banners" id="popup-events">
-  <div class="section-head">
-    <p class="section-kicker">Featured pop-up</p>
-    <h2 class="popup-banners-title">CORTIS Pop-up Events</h2>
-  </div>
   <div class="popup-banner-row">
     {% for p in popups %}
       <a class="popup-banner" href="/popup/{{ p.id }}">
@@ -34,17 +20,17 @@
         <div class="popup-banner-body">
           <div class="popup-banner-group">{{ p.group_name or 'CORTIS' }}</div>
           <div class="popup-banner-title">{{ p.title }}</div>
-        </div>
-        <div class="popup-banner-period">
-          {% if p.start_date and p.end_date %}
-            {{ p.start_date }} – {{ p.end_date }}
-          {% elif p.start_date %}
-            From {{ p.start_date }}
-          {% elif p.end_date %}
-            Until {{ p.end_date }}
-          {% else %}
-            Open now
-          {% endif %}
+          <div class="popup-banner-period">
+            {% if p.start_date and p.end_date %}
+              {{ p.start_date }} – {{ p.end_date }}
+            {% elif p.start_date %}
+              From {{ p.start_date }}
+            {% elif p.end_date %}
+              Until {{ p.end_date }}
+            {% else %}
+              Open now
+            {% endif %}
+          </div>
         </div>
       </a>
     {% endfor %}
