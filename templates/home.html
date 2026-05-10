@@ -42,6 +42,25 @@
         </div>
       </a>
     {% endfor %}
+    {% set coming_soon_count = 3 - (popups|length) %}
+    {% if coming_soon_count > 0 %}
+      {% for _ in range(coming_soon_count) %}
+        <div class="popup-summary-card coming-soon-card" aria-disabled="true">
+          <div class="popup-summary-item">
+            <span class="summary-label">Group</span>
+            <strong>Next artist</strong>
+          </div>
+          <div class="popup-summary-item">
+            <span class="summary-label">Pop-up</span>
+            <strong>More events soon</strong>
+          </div>
+          <div class="popup-summary-item">
+            <span class="summary-label">Period</span>
+            <strong>COMING SOON</strong>
+          </div>
+        </div>
+      {% endfor %}
+    {% endif %}
 </section>
 {% endif %}
 
