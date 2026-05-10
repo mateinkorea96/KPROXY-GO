@@ -1,40 +1,47 @@
 {% extends "base.html" %}
 {% block title %}greengreen pop up | CORTIS{% endblock %}
 {% block content %}
+{% if popups %}
+  {% set featured_popup = popups[0] %}
+{% endif %}
+{% if popups %}
 <section class="popup-hero">
-  <div class="popup-hero-art" aria-label="greengreen pop up CORTIS banner">
-    <img src="/static/img/greengreen-popup-banner.svg" alt="greengreen pop up CORTIS visual banner" />
-  </div>
+  <a class="popup-hero-link" href="/popup/{{ featured_popup.id }}" aria-label="{{ featured_popup.title }} purchase page">
+    <img src="/static/img/greengreen-popup-banner.svg" alt="{{ featured_popup.title }} banner" />
+  </a>
 </section>
+{% endif %}
 
 {% if error %}<div class="alert">{{ error }}</div>{% endif %}
 
 {% if popups %}
-<section class="popup-banners" id="popup-events">
-  <div class="popup-banner-row">
+<section class="popup-summary-list" id="popup-events" aria-label="Active pop-up events">
     {% for p in popups %}
-      <a class="popup-banner" href="/popup/{{ p.id }}">
-        <div class="popup-banner-media">
-          <img src="/static/img/greengreen-popup-banner.svg" alt="{{ p.title }} banner">
+      <a class="popup-summary-card" href="/popup/{{ p.id }}">
+        <div class="popup-summary-item">
+          <span class="summary-label">Group</span>
+          <strong>{{ p.group_name or 'CORTIS' }}</strong>
         </div>
-        <div class="popup-banner-body">
-          <div class="popup-banner-group">{{ p.group_name or 'CORTIS' }}</div>
-          <div class="popup-banner-title">{{ p.title }}</div>
-          <div class="popup-banner-period">
-            {% if p.start_date and p.end_date %}
-              {{ p.start_date }} – {{ p.end_date }}
-            {% elif p.start_date %}
-              From {{ p.start_date }}
-            {% elif p.end_date %}
-              Until {{ p.end_date }}
-            {% else %}
-              Open now
-            {% endif %}
-          </div>
+        <div class="popup-summary-item">
+          <span class="summary-label">Pop-up</span>
+          <strong>{{ p.title }}</strong>
+        </div>
+        <div class="popup-summary-item">
+          <span class="summary-label">Period</span>
+          <strong>
+          {% if p.start_date and p.end_date %}
+            {{ p.start_date }} – {{ p.end_date }}
+          {% elif p.start_date %}
+            From {{ p.start_date }}
+          {% elif p.end_date %}
+            Until {{ p.end_date }}
+          {% else %}
+            Open now
+          {% endif %}
+          </strong>
         </div>
       </a>
     {% endfor %}
-  </div>
 </section>
 {% endif %}
 
