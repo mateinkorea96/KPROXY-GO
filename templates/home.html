@@ -1,22 +1,40 @@
 {% extends "base.html" %}
-{% block title %}Active Group Orders — starphotocard{% endblock %}
+{% block title %}greengreen pop up | CORTIS{% endblock %}
 {% block content %}
-<section class="hero">
-  <h1>K-pop <em>Group Orders</em></h1>
-  <p class="lead">Pre-order official photocard sets, albums and merchandise. Worldwide shipping via Alibaba.</p>
-  <p><a class="btn primary" href="/order">Place an Order →</a></p>
+<section class="popup-hero">
+  <div class="popup-hero-copy">
+    <div class="hero-kicker">Now open for overseas order</div>
+    <h1><span>greengreen pop up</span></h1>
+    <p class="hero-artist">CORTIS</p>
+    <p class="lead">Browse pop-up exclusive items, albums, and official goods from Korea. Select your items and place an order in one flow.</p>
+    <div class="hero-actions">
+      <a class="btn primary big" href="#popup-events">View Pop-up</a>
+      <a class="btn big" href="/order">Order Now</a>
+    </div>
+  </div>
+  <div class="popup-hero-art" aria-label="greengreen pop up CORTIS banner">
+    <img src="/static/img/greengreen-popup-banner.svg" alt="greengreen pop up CORTIS visual banner" />
+  </div>
 </section>
 
 {% if error %}<div class="alert">{{ error }}</div>{% endif %}
 
 {% if popups %}
-<section class="popup-banners">
-  <h2 class="popup-banners-title">Pop-Up Events</h2>
+<section class="popup-banners" id="popup-events">
+  <div class="section-head">
+    <p class="section-kicker">Featured pop-up</p>
+    <h2 class="popup-banners-title">CORTIS Pop-up Events</h2>
+  </div>
   <div class="popup-banner-row">
     {% for p in popups %}
       <a class="popup-banner" href="/popup/{{ p.id }}">
-        <div class="popup-banner-title">{{ p.title }}</div>
-        <div class="popup-banner-group">{{ p.group_name }}</div>
+        <div class="popup-banner-media">
+          <img src="/static/img/greengreen-popup-banner.svg" alt="{{ p.title }} banner">
+        </div>
+        <div class="popup-banner-body">
+          <div class="popup-banner-group">{{ p.group_name or 'CORTIS' }}</div>
+          <div class="popup-banner-title">{{ p.title }}</div>
+        </div>
         <div class="popup-banner-period">
           {% if p.start_date and p.end_date %}
             {{ p.start_date }} – {{ p.end_date }}
@@ -118,23 +136,6 @@
     <a class="btn primary big" id="cart-checkout-btn" href="/order" style="display:block;text-align:center">Proceed to Checkout →</a>
   </div>
 </aside>
-
-<style>
-.home-tabs { margin: 24px 0 20px; }
-.popup-banners { margin: 20px 0 24px; }
-.popup-banners-title { font-size: 16px; font-weight: 600; color: #555; margin-bottom: 12px; }
-.popup-banner-row { display: flex; gap: 14px; flex-wrap: wrap; }
-.popup-banner {
-  display: block; text-decoration: none; color: inherit;
-  border: 2px solid #222; border-radius: 10px;
-  padding: 16px 22px; min-width: 220px; max-width: 320px; flex: 1;
-  background: #fff; transition: box-shadow 0.15s;
-}
-.popup-banner:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
-.popup-banner-title { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
-.popup-banner-group { font-size: 13px; color: #555; margin-bottom: 4px; }
-.popup-banner-period { font-size: 12px; color: #888; }
-</style>
 
 <script>
 // ─────────────────────────────────────────────

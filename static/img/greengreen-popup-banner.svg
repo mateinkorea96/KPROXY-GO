@@ -1,0 +1,23 @@
+<svg width="1200" height="760" viewBox="0 0 1200 760" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="760" rx="42" fill="#EBF7D8"/>
+  <rect x="56" y="56" width="1088" height="648" rx="34" fill="#FAFFF2" stroke="#1F2B18" stroke-width="6"/>
+  <rect x="96" y="96" width="1008" height="568" rx="26" fill="#C8EF88"/>
+  <path d="M120 526C243 441 352 419 465 462C560 498 646 589 771 557C883 528 945 428 1080 450V664H120V526Z" fill="#1F7A3A"/>
+  <path d="M120 562C249 483 361 472 474 519C592 568 682 650 802 614C901 584 962 515 1080 532V664H120V562Z" fill="#0D4B2D"/>
+  <circle cx="965" cy="177" r="76" fill="#F8FFE2" stroke="#1F2B18" stroke-width="5"/>
+  <path d="M196 159H567" stroke="#1F2B18" stroke-width="8" stroke-linecap="round"/>
+  <path d="M196 214H694" stroke="#1F2B18" stroke-width="8" stroke-linecap="round"/>
+  <text x="190" y="344" fill="#1F2B18" font-family="Arial, Helvetica, sans-serif" font-size="92" font-weight="900" letter-spacing="1">greengreen</text>
+  <text x="194" y="431" fill="#1F2B18" font-family="Arial, Helvetica, sans-serif" font-size="86" font-weight="900" letter-spacing="1">pop up</text>
+  <rect x="191" y="467" width="286" height="76" rx="38" fill="#1F2B18"/>
+  <text x="233" y="519" fill="#FAFFF2" font-family="Arial, Helvetica, sans-serif" font-size="44" font-weight="900" letter-spacing="8">CORTIS</text>
+  <g transform="translate(754 250)">
+    <rect x="0" y="0" width="250" height="306" rx="26" fill="#FAFFF2" stroke="#1F2B18" stroke-width="6"/>
+    <rect x="31" y="34" width="188" height="150" rx="18" fill="#A1D95A"/>
+    <path d="M60 150C98 94 153 92 191 150" stroke="#1F2B18" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="94" cy="94" r="15" fill="#1F2B18"/>
+    <circle cx="158" cy="94" r="15" fill="#1F2B18"/>
+    <rect x="43" y="216" width="164" height="18" rx="9" fill="#1F2B18"/>
+    <rect x="60" y="252" width="130" height="16" rx="8" fill="#1F2B18" opacity=".72"/>
+  </g>
+</svg>

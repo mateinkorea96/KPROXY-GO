@@ -1,44 +1,35 @@
 {% extends "base.html" %}
-{% block title %}{{ popup.title }} — starphotocard{% endblock %}
+{% block title %}{{ popup.title }} | {{ popup.group_name }}{% endblock %}
 {% block content %}
-<style>
-.popup-header { margin-bottom: 28px; }
-.popup-header h1 { margin-bottom: 6px; }
-.popup-meta { color: #666; font-size: 14px; margin-bottom: 4px; }
-.popup-period { font-size: 13px; color: #888; }
-.popup-product-list { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
-.popup-product-row {
-  display: flex; align-items: center; gap: 16px;
-  padding: 14px 18px; border: 1px solid #e8e8e8; border-radius: 8px;
-  background: #fafafa;
-}
-.popup-product-no { font-size: 13px; color: #aaa; min-width: 28px; text-align: right; }
-.popup-product-info { flex: 1; }
-.popup-product-name { font-weight: 600; font-size: 15px; margin-bottom: 2px; }
-.popup-product-option { font-size: 13px; color: #666; }
-.popup-product-price { font-size: 15px; font-weight: 700; color: #222; min-width: 80px; text-align: right; }
-.popup-product-url { font-size: 13px; margin-left: 12px; }
-.back-link { font-size: 14px; color: #888; }
-</style>
+<p class="back-link"><a href="/">Back to pop-ups</a></p>
 
-<div class="popup-header">
-  <p class="back-link"><a href="/">← Back</a></p>
-  <h1>{{ popup.title }}</h1>
-  <div class="popup-meta">Group: <strong>{{ popup.group_name }}</strong></div>
-  <div class="popup-period">
-    {% if popup.start_date and popup.end_date %}
-      {{ popup.start_date }} – {{ popup.end_date }}
-    {% elif popup.start_date %}
-      From {{ popup.start_date }}
-    {% elif popup.end_date %}
-      Until {{ popup.end_date }}
-    {% else %}
-      Open now
-    {% endif %}
+<section class="popup-detail-hero">
+  <div class="popup-detail-copy">
+    <div class="hero-kicker">Official pop-up order</div>
+    <h1>{{ popup.title }}</h1>
+    <p class="hero-artist">{{ popup.group_name }}</p>
+    <div class="popup-period">
+      {% if popup.start_date and popup.end_date %}
+        {{ popup.start_date }} - {{ popup.end_date }}
+      {% elif popup.start_date %}
+        From {{ popup.start_date }}
+      {% elif popup.end_date %}
+        Until {{ popup.end_date }}
+      {% else %}
+        Open now
+      {% endif %}
+    </div>
   </div>
-</div>
+  <div class="popup-detail-art">
+    <img src="/static/img/greengreen-popup-banner.svg" alt="{{ popup.title }} visual banner">
+  </div>
+</section>
 
 {% if products %}
+  <div class="popup-product-head">
+    <p class="section-kicker">Product list</p>
+    <h2>Available Items</h2>
+  </div>
   <div class="popup-product-list">
     {% for p in products %}
       <div class="popup-product-row">
@@ -47,9 +38,9 @@
           <div class="popup-product-name">{{ p.product_name }}</div>
           {% if p.option_name %}<div class="popup-product-option">{{ p.option_name }}</div>{% endif %}
         </div>
-        <span class="popup-product-price">{% if p.price_krw %}₩{{ '{:,}'.format(p.price_krw|int) }}{% else %}—{% endif %}</span>
+        <span class="popup-product-price">{% if p.price_krw %}KRW {{ '{:,}'.format(p.price_krw|int) }}{% else %}TBD{% endif %}</span>
         {% if p.url %}
-          <a class="popup-product-url muted" href="{{ p.url }}" target="_blank" rel="noopener">Link ↗</a>
+          <a class="popup-product-url muted" href="{{ p.url }}" target="_blank" rel="noopener">Link</a>
         {% endif %}
       </div>
     {% endfor %}
