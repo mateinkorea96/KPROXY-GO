@@ -397,19 +397,25 @@ table.dt tr.is-closed td{opacity:0.5}
   border-style:dashed;
   background:rgba(255,255,255,0.62);
 }
-.coming-soon-card::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  backdrop-filter:blur(1.5px);
-  pointer-events:none;
+.coming-soon-card{
+  display:block;
 }
-.coming-soon-card::after{
-  content:"COMING SOON";
+.coming-soon-content{
+  display:grid;
+  grid-template-columns:0.7fr 1.35fr 1fr;
+  gap:12px;
+  align-items:center;
+  filter:blur(2px);
+  opacity:0.36;
+  pointer-events:none;
+  user-select:none;
+}
+.coming-soon-label{
   position:absolute;
-  right:18px;
+  left:50%;
   top:50%;
-  transform:translateY(-50%);
+  z-index:1;
+  transform:translate(-50%,-50%);
   padding:6px 12px;
   color:#1f7a3a;
   background:#f4f8ec;
@@ -423,10 +429,6 @@ table.dt tr.is-closed td{opacity:0.5}
   transform:none;
   border-color:#d8e6bb;
   box-shadow:var(--shadow-sm);
-}
-.coming-soon-card .popup-summary-item{
-  opacity:0.48;
-  filter:blur(0.35px);
 }
 .popup-summary-item{
   display:flex;
@@ -658,12 +660,7 @@ table.dt tr.is-closed td{opacity:0.5}
   .popup-detail-hero{aspect-ratio:2.2 / 1}
   .popup-summary-card,
   .popup-detail-summary{grid-template-columns:1fr; gap:10px}
-  .coming-soon-card::after{
-    position:static;
-    transform:none;
-    width:max-content;
-    margin-top:4px;
-  }
+  .coming-soon-content{grid-template-columns:1fr; gap:10px}
   .storefront-trust,
   .storefront-guide,
   .guide-steps{grid-template-columns:1fr}
