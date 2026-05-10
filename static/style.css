@@ -405,10 +405,25 @@ table.dt tr.is-closed td{opacity:0.5}
   grid-template-columns:0.7fr 1.35fr 1fr;
   gap:12px;
   align-items:center;
-  filter:blur(7px);
-  opacity:0.18;
+  visibility:hidden;
   pointer-events:none;
   user-select:none;
+}
+.coming-soon-card::before{
+  content:"";
+  position:absolute;
+  left:18px;
+  right:18px;
+  top:50%;
+  height:18px;
+  transform:translateY(-50%);
+  background:
+    linear-gradient(90deg, rgba(111,123,101,0.16), rgba(111,123,101,0.08)) left center / 22% 100% no-repeat,
+    linear-gradient(90deg, rgba(111,123,101,0.14), rgba(111,123,101,0.06)) center center / 30% 100% no-repeat,
+    linear-gradient(90deg, rgba(111,123,101,0.13), rgba(111,123,101,0.05)) right center / 22% 100% no-repeat;
+  filter:blur(8px);
+  opacity:0.55;
+  pointer-events:none;
 }
 .coming-soon-label{
   position:absolute;
