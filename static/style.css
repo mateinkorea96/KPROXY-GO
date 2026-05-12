@@ -356,14 +356,17 @@ table.dt tr.is-closed td{opacity:0.5}
 
 /* Pop-up sales page refresh */
 .popup-hero{
-  max-width:1000px;
+  display:flex;
+  justify-content:center;
+  width:100%;
+  max-width:920px;
   margin:0 auto 18px;
 }
 .popup-hero-link{
   display:block;
   overflow:hidden;
+  width:min(100%, 520px);
   aspect-ratio:1 / 1.22;
-  max-height:720px;
   background:#87ad8e;
   border:1px solid #122116;
   border-radius:8px;
