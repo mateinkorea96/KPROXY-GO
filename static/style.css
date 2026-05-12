@@ -383,16 +383,17 @@ table.dt tr.is-closed td{opacity:0.5}
 .popup-summary-list{
   display:grid;
   gap:10px;
-  max-width:1000px;
+  max-width:920px;
   margin:0 auto 30px;
 }
 .popup-summary-card,
 .popup-detail-summary{
   display:grid;
-  grid-template-columns:96px 0.7fr 1.35fr 1fr;
+  grid-template-columns:72px 0.7fr 1.35fr 1fr;
   gap:12px;
   align-items:center;
-  padding:16px 18px;
+  min-height:98px;
+  padding:12px 18px;
   background:#fff;
   border:1px solid var(--border);
   border-radius:8px;
@@ -421,7 +422,7 @@ table.dt tr.is-closed td{opacity:0.5}
 }
 .coming-soon-content{
   display:grid;
-  grid-template-columns:96px 0.7fr 1.35fr 1fr;
+  grid-template-columns:72px 0.7fr 1.35fr 1fr;
   gap:12px;
   align-items:center;
   visibility:hidden;
@@ -487,7 +488,7 @@ table.dt tr.is-closed td{opacity:0.5}
 }
 .popup-card-visual{
   overflow:hidden;
-  width:96px;
+  width:72px;
   aspect-ratio:1;
   background:#edf4eb;
   border:1px solid var(--border);
@@ -622,11 +623,11 @@ table.dt tr.is-closed td{opacity:0.5}
   display:block;
 }
 .popup-detail-summary{
-  max-width:1000px;
+  max-width:920px;
   margin:0 auto 32px;
 }
 .detail-visual{
-  width:112px;
+  width:72px;
 }
 .back-link{
   max-width:1000px;

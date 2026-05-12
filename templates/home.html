@@ -132,6 +132,7 @@
 </div>
 {% endif %}
 
+{% if active_count > 0 %}
 {% for cat in ['POCA_SET', 'ALBUM', 'MD'] %}
   <section class="home-cat" data-cat="{{ cat }}"{% if not loop.first %} style="display:none"{% endif %}>
     {% if by_cat[cat] %}
@@ -173,14 +174,9 @@
           </article>
         {% endfor %}
       </div>
-    {% else %}
-      <div class="empty">No active {{ labels[cat]|lower }} right now. Check back soon ✨</div>
     {% endif %}
   </section>
 {% endfor %}
-
-{% if active_count == 0 %}
-  <div class="empty">No active group orders right now. Check back soon ✨</div>
 {% endif %}
 
 <!-- Floating cart FAB -->
