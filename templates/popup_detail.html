@@ -42,7 +42,12 @@
   </div>
   <div class="popup-product-list">
     {% for p in products %}
-      <article class="popup-product-card">
+      <article class="popup-product-card"
+               data-key="popup-{{ popup.id }}-{{ p.id or loop.index }}"
+               data-name="{{ p.product_name }}"
+               data-option="{{ p.option_name or '' }}"
+               data-price="{{ p.price_krw|int if p.price_krw else 0 }}"
+               data-url="{{ p.url or '' }}">
         <div class="popup-product-thumb">
           <span>{{ p.no or loop.index }}</span>
         </div>
@@ -52,6 +57,8 @@
         </div>
         <div class="popup-product-buy">
           <span class="popup-product-price">{% if p.price_krw %}KRW {{ '{:,}'.format(p.price_krw|int) }}{% else %}TBD{% endif %}</span>
+          <input type="number" class="popup-cart-qty" min="1" max="99" value="1" aria-label="Quantity">
+          <button type="button" class="btn small popup-add-cart" onclick="addPopupItemToCart(this)">Add to Cart</button>
           {% if p.url %}
             <a class="btn small" href="{{ p.url }}" target="_blank" rel="noopener">View item</a>
           {% endif %}
@@ -62,6 +69,26 @@
 {% else %}
   <div class="empty">No products listed for this pop-up yet.</div>
 {% endif %}
+
+<button type="button" class="cart-fab" id="popup-cart-fab" onclick="togglePopupCart(true)" aria-label="Open popup cart">
+  🛒 <span class="cart-badge" id="popup-cart-badge">0</span>
+</button>
+
+<div class="cart-overlay" id="popup-cart-overlay" onclick="togglePopupCart(false)"></div>
+<aside class="cart-drawer" id="popup-cart-drawer" aria-hidden="true">
+  <div class="cart-header">
+    <h2 style="font-size:18px;margin:0">Your Cart</h2>
+    <button type="button" class="cart-close" onclick="togglePopupCart(false)" aria-label="Close cart">×</button>
+  </div>
+  <div class="cart-items" id="popup-cart-items"></div>
+  <div class="cart-footer">
+    <div class="cart-total">
+      <span class="label">Item total</span>
+      <span class="amount" id="popup-cart-total">KRW 0</span>
+    </div>
+    <a class="btn primary big" href="/order" style="display:block;text-align:center">Go to order form</a>
+  </div>
+</aside>
 
 <section class="storefront-guide detail-guide">
   <div class="guide-panel">
@@ -93,4 +120,115 @@
     </ul>
   </aside>
 </section>
+
+<script>
+const POPUP_CART_KEY = 'mateinkorea_popup_cart_v1';
+
+function loadPopupCart() {
+  try { return JSON.parse(localStorage.getItem(POPUP_CART_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function savePopupCart(cart) {
+  localStorage.setItem(POPUP_CART_KEY, JSON.stringify(cart));
+  renderPopupCart();
+}
+
+function addPopupItemToCart(btn) {
+  const card = btn.closest('.popup-product-card');
+  if (!card) return;
+  const qtyInput = card.querySelector('.popup-cart-qty');
+  const qty = Math.max(1, parseInt(qtyInput.value, 10) || 1);
+  const item = {
+    key: card.dataset.key,
+    name: card.dataset.name,
+    option: card.dataset.option,
+    price: parseInt(card.dataset.price, 10) || 0,
+    url: card.dataset.url,
+    qty,
+  };
+  const cart = loadPopupCart();
+  const existing = cart.find(i => i.key === item.key);
+  if (existing) existing.qty += qty;
+  else cart.push(item);
+  savePopupCart(cart);
+  qtyInput.value = 1;
+  const fab = document.getElementById('popup-cart-fab');
+  if (fab) {
+    fab.classList.remove('bump');
+    void fab.offsetWidth;
+    fab.classList.add('bump');
+  }
+}
+
+function updatePopupCartQty(key, delta) {
+  const cart = loadPopupCart();
+  const item = cart.find(i => i.key === key);
+  if (!item) return;
+  item.qty = Math.max(0, item.qty + delta);
+  savePopupCart(item.qty === 0 ? cart.filter(i => i.key !== key) : cart);
+}
+
+function removePopupCartItem(key) {
+  savePopupCart(loadPopupCart().filter(i => i.key !== key));
+}
+
+function renderPopupCart() {
+  const cart = loadPopupCart();
+  const totalItems = cart.reduce((sum, item) => sum + item.qty, 0);
+  const totalKrw = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const fab = document.getElementById('popup-cart-fab');
+  const badge = document.getElementById('popup-cart-badge');
+  if (fab && badge) {
+    badge.textContent = totalItems;
+    fab.style.display = 'flex';
+  }
+  const itemsEl = document.getElementById('popup-cart-items');
+  if (itemsEl) {
+    if (!cart.length) {
+      itemsEl.innerHTML = '<div class="empty" style="margin:30px 0">Your cart is empty.</div>';
+    } else {
+      itemsEl.innerHTML = cart.map(item => `
+        <div class="cart-item">
+          <div class="cart-item-head">
+            <span class="cart-item-code">POP-UP ITEM</span>
+            <button type="button" class="cart-item-remove" onclick="removePopupCartItem('${escapePopupAttr(item.key)}')" aria-label="Remove">×</button>
+          </div>
+          <div class="cart-item-name">${escapePopupHtml(item.name)}</div>
+          ${item.option ? `<div class="cart-item-sub">${escapePopupHtml(item.option)}</div>` : ''}
+          <div class="cart-item-foot">
+            <div class="cart-qty-ctrl">
+              <button type="button" onclick="updatePopupCartQty('${escapePopupAttr(item.key)}', -1)" aria-label="Decrease">-</button>
+              <span>${item.qty}</span>
+              <button type="button" onclick="updatePopupCartQty('${escapePopupAttr(item.key)}', 1)" aria-label="Increase">+</button>
+            </div>
+            <div class="cart-item-price">${item.price ? 'KRW ' + (item.price * item.qty).toLocaleString() : 'TBD'}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+  const totalEl = document.getElementById('popup-cart-total');
+  if (totalEl) totalEl.textContent = totalKrw ? 'KRW ' + totalKrw.toLocaleString() : 'TBD';
+}
+
+function togglePopupCart(open) {
+  const drawer = document.getElementById('popup-cart-drawer');
+  const overlay = document.getElementById('popup-cart-overlay');
+  if (!drawer || !overlay) return;
+  drawer.classList.toggle('open', open);
+  overlay.classList.toggle('show', open);
+  drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+}
+
+function escapePopupHtml(value) {
+  return String(value || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function escapePopupAttr(value) {
+  return escapePopupHtml(value).replace(/'/g, "\\'");
+}
+
+renderPopupCart();
+</script>
 {% endblock %}
