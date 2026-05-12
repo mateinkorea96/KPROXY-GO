@@ -18,8 +18,8 @@
 <section class="popup-summary-list" id="popup-events" aria-label="Active pop-up events">
     {% for p in popups %}
       <a class="popup-summary-card" href="/popup/{{ p.id }}">
-        <div class="popup-card-visual">
-          <img src="{{ p.image_url if p.image_url is defined and p.image_url else '/static/img/cortis-greengreen-popup.png' }}" alt="{{ p.title }} image">
+        <div class="popup-card-visual" style="width:72px;height:72px;min-width:72px;max-width:72px;overflow:hidden;">
+          <img src="{{ p.image_url if p.image_url is defined and p.image_url else '/static/img/cortis-greengreen-popup.png' }}" alt="{{ p.title }} image" width="72" height="72" style="width:72px;height:72px;object-fit:cover;display:block;">
         </div>
         <div class="popup-summary-item">
           <span class="summary-label">Group</span>
