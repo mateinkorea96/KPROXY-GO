@@ -578,6 +578,9 @@ table.dt tr.is-closed td{opacity:0.5}
   align-items:stretch;
   gap:8px;
 }
+.detail-summary-actions{
+  flex:0 0 116px;
+}
 .stock-pill,
 .buy-now-btn{
   display:inline-flex;
@@ -872,6 +875,7 @@ table.dt tr.is-closed td{opacity:0.5}
   .popup-summary-item strong{font-size:11px}
   .popup-summary-period{flex:0 0 112px}
   .popup-summary-actions{flex:0 0 72px; gap:5px}
+  .detail-summary-actions{flex:0 0 72px}
   .stock-pill,
   .buy-now-btn{min-height:24px; padding:6px 7px; font-size:8px}
   .storefront-trust,

@@ -11,15 +11,15 @@
   <div class="popup-card-visual detail-visual">
     <img src="{{ popup.image_url if popup.image_url is defined and popup.image_url else '/static/img/cortis-greengreen-popup.png' }}" alt="{{ popup.title }} image">
   </div>
-  <div class="popup-summary-item">
+  <div class="popup-summary-item popup-summary-group">
     <span class="summary-label">Group</span>
     <strong>{{ popup.group_name }}</strong>
   </div>
-  <div class="popup-summary-item">
+  <div class="popup-summary-item popup-summary-title">
     <span class="summary-label">Pop-up</span>
     <strong>{{ popup.title }}</strong>
   </div>
-  <div class="popup-summary-item">
+  <div class="popup-summary-item popup-summary-period">
     <span class="summary-label">Period</span>
     <strong>
       {% if popup.start_date and popup.end_date %}
@@ -32,6 +32,9 @@
         Open now
       {% endif %}
     </strong>
+  </div>
+  <div class="popup-summary-actions detail-summary-actions">
+    <span class="stock-pill is-active">IN STOCK</span>
   </div>
 </section>
 
