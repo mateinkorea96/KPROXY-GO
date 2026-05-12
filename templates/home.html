@@ -7,7 +7,8 @@
 {% if popups %}
 <section class="popup-hero">
   <a class="popup-hero-link" href="/popup/{{ featured_popup.id }}" aria-label="{{ featured_popup.title }} purchase page">
-    <img src="/static/img/cortis-greengreen-popup.png" alt="{{ featured_popup.title }} banner" />
+    <img class="popup-hero-slide is-active" src="/static/img/greengreen-wide-banner.png" alt="{{ featured_popup.title }} banner">
+    <img class="popup-hero-slide" src="/static/img/coming-soon-banner.jpg" alt="Coming soon banner">
   </a>
 </section>
 {% endif %}
@@ -377,5 +378,15 @@ function escapeAttr(s) { return escapeHtml(s).replace(/'/g, "\\'"); }
 // Init
 buildIdolTabs();
 renderCart();
+
+const heroSlides = [...document.querySelectorAll('.popup-hero-slide')];
+if (heroSlides.length > 1) {
+  let heroSlideIndex = 0;
+  setInterval(() => {
+    heroSlides[heroSlideIndex].classList.remove('is-active');
+    heroSlideIndex = (heroSlideIndex + 1) % heroSlides.length;
+    heroSlides[heroSlideIndex].classList.add('is-active');
+  }, 4000);
+}
 </script>
 {% endblock %}

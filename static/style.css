@@ -403,11 +403,12 @@ table.dt tr.is-closed td{opacity:0.5}
   margin:0 auto 18px;
 }
 .popup-hero-link{
+  position:relative;
   display:block;
   overflow:hidden;
-  width:min(100%, 520px);
-  aspect-ratio:1 / 1.22;
-  background:#87ad8e;
+  width:min(100%, 900px);
+  aspect-ratio:3 / 1;
+  background:#fff;
   border:1px solid #122116;
   border-radius:8px;
   box-shadow:0 18px 46px rgba(18,33,22,0.16);
@@ -417,11 +418,18 @@ table.dt tr.is-closed td{opacity:0.5}
   border-color:#1f7a3a;
   box-shadow:0 12px 28px rgba(31,122,58,0.14);
 }
-.popup-hero-link img{
+.popup-hero-slide{
+  position:absolute;
+  inset:0;
   width:100%;
   height:100%;
-  object-fit:cover;
+  object-fit:contain;
   display:block;
+  opacity:0;
+  transition:opacity 0.45s ease;
+}
+.popup-hero-slide.is-active{
+  opacity:1;
 }
 .popup-summary-list{
   display:grid;
@@ -777,7 +785,9 @@ table.dt tr.is-closed td{opacity:0.5}
 
 @media (max-width: 760px){
   .popup-hero-link,
-  .popup-detail-hero{aspect-ratio:1 / 1.22; max-height:none}
+  .popup-detail-hero{max-height:none}
+  .popup-hero-link{aspect-ratio:3 / 1}
+  .popup-detail-hero{aspect-ratio:1 / 1.22}
   .popup-summary-card,
   .popup-detail-summary{gap:10px; height:78px; min-height:78px; max-height:78px; padding:10px}
   .coming-soon-content{gap:10px}
