@@ -388,11 +388,10 @@ table.dt tr.is-closed td{opacity:0.5}
 }
 .popup-summary-card,
 .popup-detail-summary{
-  display:grid;
-  grid-template-columns:72px minmax(96px,0.7fr) minmax(190px,1.2fr) minmax(190px,1fr);
-  column-gap:24px;
-  row-gap:0;
+  display:flex;
+  gap:24px;
   align-items:center;
+  justify-content:space-between;
   height:98px;
   min-height:98px;
   max-height:98px;
@@ -425,11 +424,10 @@ table.dt tr.is-closed td{opacity:0.5}
   display:block;
 }
 .coming-soon-content{
-  display:grid;
-  grid-template-columns:72px minmax(96px,0.7fr) minmax(190px,1.2fr) minmax(190px,1fr);
-  column-gap:24px;
-  row-gap:0;
+  display:flex;
+  gap:24px;
   align-items:center;
+  justify-content:space-between;
   visibility:hidden;
   pointer-events:none;
   user-select:none;
@@ -473,9 +471,16 @@ table.dt tr.is-closed td{opacity:0.5}
 .popup-summary-item{
   display:flex;
   min-width:0;
+  flex:1 1 0;
   flex-direction:column;
   gap:3px;
   justify-content:center;
+}
+.popup-summary-item:nth-of-type(2){
+  flex:1.35 1 0;
+}
+.popup-summary-item:last-child{
+  flex:0 0 230px;
 }
 .summary-label{
   color:#687464;
@@ -494,6 +499,7 @@ table.dt tr.is-closed td{opacity:0.5}
   white-space:nowrap;
 }
 .popup-card-visual{
+  flex:0 0 72px;
   overflow:hidden;
   width:72px !important;
   min-width:72px;
@@ -730,13 +736,14 @@ table.dt tr.is-closed td{opacity:0.5}
   .popup-hero-link,
   .popup-detail-hero{aspect-ratio:1 / 1.22; max-height:none}
   .popup-summary-card,
-  .popup-detail-summary{grid-template-columns:56px minmax(62px,0.6fr) minmax(128px,1fr) minmax(144px,1.05fr); column-gap:10px; row-gap:0; height:78px; min-height:78px; max-height:78px; padding:10px}
-  .coming-soon-content{grid-template-columns:56px minmax(62px,0.6fr) minmax(128px,1fr) minmax(144px,1.05fr); column-gap:10px; row-gap:0}
-  .popup-card-visual{grid-row:auto; width:56px !important; min-width:56px; max-width:56px; height:56px !important; min-height:56px; max-height:56px}
+  .popup-detail-summary{gap:10px; height:78px; min-height:78px; max-height:78px; padding:10px}
+  .coming-soon-content{gap:10px}
+  .popup-card-visual{flex-basis:56px; width:56px !important; min-width:56px; max-width:56px; height:56px !important; min-height:56px; max-height:56px}
   .popup-card-visual img{width:56px !important; height:56px !important}
   .detail-visual{width:56px}
   .summary-label{font-size:9px}
   .popup-summary-item strong{font-size:12px}
+  .popup-summary-item:last-child{flex:0 0 142px}
   .storefront-trust,
   .storefront-guide,
   .guide-steps{grid-template-columns:1fr}
