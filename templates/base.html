@@ -17,10 +17,14 @@
       <a href="/order">Order</a>
       <a href="/faq">FAQ</a>
       {% if social_links.instagram %}
-        <a class="social-nav" href="{{ social_links.instagram }}" target="_blank" rel="noopener">Instagram</a>
+        <a class="social-nav social-instagram" href="{{ social_links.instagram }}" target="_blank" rel="noopener" aria-label="Open Mate in Korea Instagram">
+          <span class="social-icon instagram-icon" aria-hidden="true"></span>
+        </a>
       {% endif %}
       {% if social_links.x %}
-        <a class="social-nav" href="{{ social_links.x }}" target="_blank" rel="noopener">X</a>
+        <a class="social-nav social-x" href="{{ social_links.x }}" target="_blank" rel="noopener" aria-label="Open Mate in Korea X">
+          <span class="social-icon x-icon" aria-hidden="true">X</span>
+        </a>
       {% endif %}
       {% if request.cookies.get('session_id') %}
         <a href="/admin/dashboard">Admin</a>
@@ -37,8 +41,16 @@
     <span>Mate in Korea proxy order service for official K-pop merchandise.</span>
     {% if social_links.instagram or social_links.x %}
       <div class="footer-socials">
-        {% if social_links.instagram %}<a href="{{ social_links.instagram }}" target="_blank" rel="noopener">Instagram</a>{% endif %}
-        {% if social_links.x %}<a href="{{ social_links.x }}" target="_blank" rel="noopener">X</a>{% endif %}
+        {% if social_links.instagram %}
+          <a class="social-nav social-instagram" href="{{ social_links.instagram }}" target="_blank" rel="noopener" aria-label="Open Mate in Korea Instagram">
+            <span class="social-icon instagram-icon" aria-hidden="true"></span>
+          </a>
+        {% endif %}
+        {% if social_links.x %}
+          <a class="social-nav social-x" href="{{ social_links.x }}" target="_blank" rel="noopener" aria-label="Open Mate in Korea X">
+            <span class="social-icon x-icon" aria-hidden="true">X</span>
+          </a>
+        {% endif %}
       </div>
     {% endif %}
   </footer>

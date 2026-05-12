@@ -39,8 +39,8 @@ KAKAO_CLIENT_SECRET = os.environ.get("KAKAO_CLIENT_SECRET", "")
 # Telegram kept as fallback if Kakao not configured (gracefully no-ops if neither is set)
 TG_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TG_CHAT = os.environ.get("TELEGRAM_ADMIN_CHAT_ID", "")
-INSTAGRAM_URL = os.environ.get("INSTAGRAM_URL", "").strip()
-X_URL = os.environ.get("X_URL", "").strip()
+INSTAGRAM_URL = os.environ.get("INSTAGRAM_URL", "https://www.instagram.com/mate_in_korea/").strip()
+X_URL = os.environ.get("X_URL", "https://x.com/mateinkorea").strip()
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     # Allow boot without env so the user can see /health while configuring; routes that touch DB will 500.
