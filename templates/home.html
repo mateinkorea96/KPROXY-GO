@@ -7,7 +7,7 @@
 {% if popups %}
 <section class="popup-hero">
   <a class="popup-hero-link" href="/popup/{{ featured_popup.id }}" aria-label="{{ featured_popup.title }} purchase page">
-    <img src="/static/img/greengreen-popup-banner.svg" alt="{{ featured_popup.title }} banner" />
+    <img src="/static/img/cortis-greengreen-popup.png" alt="{{ featured_popup.title }} banner" />
   </a>
 </section>
 {% endif %}
@@ -18,6 +18,9 @@
 <section class="popup-summary-list" id="popup-events" aria-label="Active pop-up events">
     {% for p in popups %}
       <a class="popup-summary-card" href="/popup/{{ p.id }}">
+        <div class="popup-card-visual">
+          <img src="{{ p.image_url if p.image_url is defined and p.image_url else '/static/img/cortis-greengreen-popup.png' }}" alt="{{ p.title }} image">
+        </div>
         <div class="popup-summary-item">
           <span class="summary-label">Group</span>
           <strong>{{ p.group_name or 'CORTIS' }}</strong>
@@ -47,6 +50,7 @@
       {% for _ in range(coming_soon_count) %}
         <div class="popup-summary-card coming-soon-card" aria-disabled="true">
           <div class="coming-soon-content">
+            <div class="popup-card-visual empty-visual"></div>
             <div class="popup-summary-item">
               <span class="summary-label">Group</span>
               <strong>Next artist</strong>

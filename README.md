@@ -37,6 +37,8 @@ Health: `GET /health`
 - `SESSION_HOURS` — session duration, default 24
 - `TELEGRAM_BOT_TOKEN` — for buyer-order notifications (optional; leave empty to disable)
 - `TELEGRAM_ADMIN_CHAT_ID` — chat to receive notifications
+- `INSTAGRAM_URL` - public Instagram profile URL shown in the site navigation
+- `X_URL` - public X/Twitter profile URL shown in the site navigation
 
 ## Local dev
 

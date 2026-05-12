@@ -39,10 +39,12 @@ KAKAO_CLIENT_SECRET = os.environ.get("KAKAO_CLIENT_SECRET", "")
 # Telegram kept as fallback if Kakao not configured (gracefully no-ops if neither is set)
 TG_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TG_CHAT = os.environ.get("TELEGRAM_ADMIN_CHAT_ID", "")
+INSTAGRAM_URL = os.environ.get("INSTAGRAM_URL", "").strip()
+X_URL = os.environ.get("X_URL", "").strip()
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     # Allow boot without env so the user can see /health while configuring; routes that touch DB will 500.
-    print("[WARN] SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing — DB calls will fail.")
+    print("[WARN] SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing - DB calls will fail.")
 
 sb: Optional[Client] = None
 if SUPABASE_URL and SUPABASE_KEY:
@@ -51,6 +53,10 @@ if SUPABASE_URL and SUPABASE_KEY:
 app = FastAPI(title="starphotocard-go", version="0.1.0")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["social_links"] = {
+    "instagram": INSTAGRAM_URL,
+    "x": X_URL,
+}
 
 # ----------------------------------------------------------------------------
 # Sessions (in-memory; same pattern as ImageAutoUploader). For multi-instance

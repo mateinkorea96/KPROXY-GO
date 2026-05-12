@@ -4,10 +4,13 @@
 <p class="back-link"><a href="/">Back to pop-ups</a></p>
 
 <section class="popup-detail-hero">
-  <img src="/static/img/greengreen-popup-banner.svg" alt="{{ popup.title }} visual banner">
+  <img src="{{ popup.image_url if popup.image_url is defined and popup.image_url else '/static/img/cortis-greengreen-popup.png' }}" alt="{{ popup.title }} visual banner">
 </section>
 
 <section class="popup-detail-summary">
+  <div class="popup-card-visual detail-visual">
+    <img src="{{ popup.image_url if popup.image_url is defined and popup.image_url else '/static/img/cortis-greengreen-popup.png' }}" alt="{{ popup.title }} image">
+  </div>
   <div class="popup-summary-item">
     <span class="summary-label">Group</span>
     <strong>{{ popup.group_name }}</strong>
